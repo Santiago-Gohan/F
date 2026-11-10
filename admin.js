@@ -3,6 +3,7 @@
 
   const STORAGE_TOKEN = 'encuentro-admin-token';
   const STORAGE_DEFAULT = 'encuentro-admin-default';
+  const STORAGE_FAMILIAS = 'encuentro-admin-familias';
 
   const loginView = document.getElementById('login-view');
   const dashboardView = document.getElementById('dashboard-view');
@@ -23,6 +24,20 @@
   const listStatus = document.getElementById('list-status');
 
   let adminToken = sessionStorage.getItem(STORAGE_TOKEN) || '';
+  let familiasState = leerFamiliasCache();
+
+  function leerFamiliasCache() {
+    try {
+      const datos = JSON.parse(sessionStorage.getItem(STORAGE_FAMILIAS) || '[]');
+      return Array.isArray(datos) ? datos.filter(f => f && typeof f.token === 'string') : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function guardarFamiliasCache(familias) {
+    try { sessionStorage.setItem(STORAGE_FAMILIAS, JSON.stringify(familias)); } catch { /* sin caché */ }
+  }
 
   // ---------------------------------------------------------
   //  API
@@ -76,6 +91,7 @@
     adminToken = '';
     sessionStorage.removeItem(STORAGE_TOKEN);
     sessionStorage.removeItem(STORAGE_DEFAULT);
+    sessionStorage.removeItem(STORAGE_FAMILIAS);
   }
 
   loginForm.addEventListener('submit', async event => {
@@ -230,6 +246,8 @@
   }
 
   function renderFamilias(familias) {
+    familiasState = familias;
+    guardarFamiliasCache(familias);
     familyList.replaceChildren();
     familyEmpty.hidden = familias.length > 0;
     const respondidas = familias.filter(respondio);
@@ -248,11 +266,23 @@
     familyList.append(fragment);
   }
 
+  function fusionarFamilias(servidor, locales) {
+    const mapa = new Map(servidor.map(familia => [familia.token, familia]));
+    const limite = Date.now() - 5 * 60 * 1000;
+    for (const familia of locales) {
+      if (mapa.has(familia.token)) continue;
+      const creada = Date.parse(familia.createdAt || familia.updatedAt || '');
+      if (Number.isFinite(creada) && creada > limite) mapa.set(familia.token, familia);
+    }
+    return [...mapa.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
+  }
+
   async function cargarFamilias() {
     listStatus.textContent = 'Cargando familias…';
     try {
       const data = await api('/api/admin/familias');
-      renderFamilias(Array.isArray(data.familias) ? data.familias : []);
+      const servidor = Array.isArray(data.familias) ? data.familias : [];
+      renderFamilias(fusionarFamilias(servidor, familiasState));
       listStatus.textContent = '';
     } catch (error) {
       if (adminToken) listStatus.textContent = mensajeDeError(error);
@@ -261,6 +291,8 @@
   }
 
   function limpiarDashboard() {
+    familiasState = [];
+    guardarFamiliasCache([]);
     familyList.replaceChildren();
     familyEmpty.hidden = false;
     createdBox.hidden = true;
@@ -299,7 +331,7 @@
       createdBox.hidden = false;
       createdEmpty.hidden = true;
       newFamilyName.value = '';
-      await cargarFamilias();
+      renderFamilias([...familiasState.filter(item => item.token !== familia.token), familia]);
       listStatus.textContent = `Enlace creado para ${familia.name}.`;
     } catch (error) {
       createError.textContent = mensajeDeError(error);
@@ -325,12 +357,12 @@
     const nombre = nuevo.trim();
     if (!nombre || nombre === familia.name) return;
     try {
-      await api(`/api/admin/familias/${familia.token}`, {
+      const actualizada = await api(`/api/admin/familias/${familia.token}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: nombre })
       });
-      await cargarFamilias();
+      renderFamilias(familiasState.map(item => item.token === actualizada.token ? actualizada : item));
       listStatus.textContent = 'Nombre actualizado.';
     } catch (error) {
       listStatus.textContent = mensajeDeError(error);
@@ -341,7 +373,7 @@
     if (!window.confirm(`¿Eliminar a ${familia.name}? Su enlace dejará de funcionar y su respuesta se borrará.`)) return;
     try {
       await api(`/api/admin/familias/${familia.token}`, { method: 'DELETE' });
-      await cargarFamilias();
+      renderFamilias(familiasState.filter(item => item.token !== familia.token));
       listStatus.textContent = `${familia.name} fue eliminada.`;
     } catch (error) {
       listStatus.textContent = mensajeDeError(error);

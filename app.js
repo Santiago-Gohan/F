@@ -381,7 +381,7 @@
         body: JSON.stringify(data)
       });
       aplicarfamilia(guardada);
-      showFeedback('¡Listo! Tu respuesta quedó guardada. Puedes volver a este enlace para cambiarla.');
+      showFeedback('¡Listo! Tu respuesta quedó guardada. Puede tardar hasta un minuto en reflejarse en el resumen general.');
       await cargarResumen();
     } catch (error) {
       const campos = error.body && error.body.campos;
