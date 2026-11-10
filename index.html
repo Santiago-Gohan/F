@@ -133,6 +133,27 @@
     .text-button.delete { color: var(--danger); }
     .table-empty { padding: 18px 25px; color: var(--muted); font-size: 13px; }
     footer { display: flex; justify-content: space-between; gap: 20px; padding: 22px 0 34px; color: var(--muted); font-size: 10px; }
+    [hidden] { display: none !important; }
+    .family-banner { margin: 0 0 24px; padding: 17px 20px; display: flex; align-items: center; justify-content: space-between; gap: 18px; flex-wrap: wrap; border: 1px solid #c8dbcb; background: var(--green-pale); }
+    .family-banner strong { display: block; font: 500 24px/1.15 var(--serif); letter-spacing: -.02em; }
+    .family-banner span { color: var(--muted); font-size: 12px; }
+    .family-badge { flex: 0 0 auto; padding: 5px 10px; border-radius: 999px; background: var(--green); color: #fff; font-size: 10px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+    .family-badge.pending { background: #a88b4b; }
+    .home-entry { margin: 0 0 24px; padding: 26px 28px; border: 1px solid var(--line); background: var(--surface); box-shadow: var(--shadow); }
+    .home-entry h2 { margin: 0 0 6px; font: 500 27px/1.15 var(--serif); letter-spacing: -.025em; }
+    .home-entry p { margin: 0; color: var(--muted); font-size: 13px; }
+    .link-row { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 16px; }
+    .link-row input { flex: 1 1 260px; }
+    .link-row .btn { flex: 0 0 auto; }
+    .home-hint { margin-top: 12px; color: var(--muted); font-size: 11px; }
+    .home-hint a { color: var(--green); font-weight: 700; }
+    .workspace.home-mode { grid-template-columns: minmax(0, 760px); justify-content: center; }
+    .workspace.home-mode .form-panel { display: none; }
+    .notice.ok { border-color: #c8dbcb; background: var(--green-pale); color: #2d5546; }
+    .notice.error { border-color: #e2c3bd; background: #f9ece9; color: #7d352d; }
+    .btn[disabled] { opacity: .55; cursor: not-allowed; }
+    input[readonly] { background: var(--surface-soft); color: var(--muted); }
+    .saved-note { margin: 10px 0 0; color: var(--muted); font-size: 11px; }
     :focus-visible { outline: 3px solid #c09055; outline-offset: 2px; }
     @media (max-width: 860px) {
       .workspace { grid-template-columns: 1fr; }
@@ -184,7 +205,7 @@
         <span class="brand-mark" aria-hidden="true">F</span>
         <span class="brand-name">Encuentro familiar</span>
       </a>
-      <span class="status-chip"><span class="status-dot" aria-hidden="true"></span> Versión de prueba</span>
+      <span class="status-chip"><span class="status-dot" aria-hidden="true"></span> <span id="status-text">Encuentro familiar</span></span>
     </header>
 
     <main id="inicio">
@@ -201,17 +222,39 @@
         </aside>
       </section>
 
-      <div class="notice" role="note">
+      <section class="family-banner" id="family-banner" aria-live="polite" hidden>
+        <div>
+          <span id="family-banner-label">Tu panel familiar</span>
+          <strong id="family-banner-name">Familia</strong>
+          <span id="family-banner-help">Actualiza tu respuesta cuando quieras. Este enlace es personal.</span>
+        </div>
+        <span class="family-badge pending" id="family-badge">Pendiente</span>
+      </section>
+
+      <div class="notice" id="mode-notice" role="note">
         <span class="notice-mark" aria-hidden="true">i</span>
-        <div><strong>Prueba local:</strong> las respuestas se guardan solo en este navegador y no se comparten todavía. Cuando tengas la base de datos, conectamos el formulario para que toda la familia vea los mismos resultados.</div>
+        <div id="mode-notice-text"><strong>Versión de prueba:</strong> las respuestas se guardan solo en este navegador y no se comparten todavía.</div>
       </div>
+
+      <section class="home-entry" id="home-entry" hidden>
+        <p class="section-index">Acceso familiar</p>
+        <h2>Entra con el enlace que te compartieron</h2>
+        <p>No necesitas crear cuenta ni contraseña. Pega aquí tu enlace personal (o el código) y listo.</p>
+        <form class="link-row" id="link-form" novalidate>
+          <label class="visually-hidden" for="link-input">Enlace o código de tu familia</label>
+          <input id="link-input" type="text" inputmode="url" autocomplete="off" placeholder="https://family.nnking919.workers.dev/f/abc123…">
+          <button class="btn btn-primary" type="submit">Entrar a mi panel</button>
+        </form>
+        <p class="form-error" id="link-error" role="alert" aria-live="polite"></p>
+        <p class="home-hint">¿No tienes enlace? Pídeselo a quien organiza la celebración. La administración está en <a href="/admin">/admin</a>.</p>
+      </section>
 
       <div class="workspace">
         <section class="panel form-panel" aria-labelledby="form-title">
           <div class="panel-head">
             <p class="section-index">01 · Responder</p>
             <h2 id="form-title">¿Cuándo y cómo puedes celebrar?</h2>
-            <p>Una respuesta por familia. Podrás editarla después desde esta página.</p>
+            <p id="form-help">Una respuesta por familia. Podrás editarla después desde este mismo enlace.</p>
           </div>
           <form id="family-form" class="form-body" novalidate>
             <div class="field-grid">
@@ -341,10 +384,10 @@
         </div>
       </section>
     </main>
-    <footer><span>Encuentro familiar · Planificación participativa</span><span>Datos temporales de este navegador; no se envían a un servidor.</span></footer>
+    <footer><span>Encuentro familiar · Planificación participativa</span><span id="footer-note">Tus respuestas se guardan de forma privada y solo se comparten contigo y con la organización.</span></footer>
   </div>
   <style>.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }</style>
-  <script src="family-logic.js" defer></script>
-  <script src="app.js" defer></script>
+  <script src="/family-logic.js" defer></script>
+  <script src="/app.js" defer></script>
 </body>
 </html>

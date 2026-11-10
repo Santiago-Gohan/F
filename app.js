@@ -1,7 +1,6 @@
 (() => {
   'use strict';
 
-  const STORAGE_KEY = 'encuentro-familiar-demo-v1';
   const EVENT_START = '2026-12-01';
   const EVENT_END = '2027-02-15';
   const PERIOD_LABELS = {
@@ -22,6 +21,9 @@
     outing: 'Paseo o actividad fuera de casa', surprise: 'Un detalle sorpresa para los abuelos'
   };
 
+  const token = tokenDeLaUrl();
+  const modoFamilia = Boolean(token);
+
   const form = document.getElementById('family-form');
   const formError = document.getElementById('form-error');
   const feedback = document.getElementById('form-feedback');
@@ -29,40 +31,61 @@
   const cancelEditButton = document.getElementById('cancel-edit');
   const fromInput = document.getElementById('available-from');
   const toInput = document.getElementById('available-to');
-  const responseRows = document.getElementById('response-rows');
-  let records = loadRecords();
-  let editingId = null;
+  const nameInput = document.getElementById('family-name');
+  const formTitle = document.getElementById('form-title');
+  const formHelp = document.getElementById('form-help');
+  const notice = document.getElementById('mode-notice');
+  const noticeText = document.getElementById('mode-notice-text');
+  const banner = document.getElementById('family-banner');
+  const bannerName = document.getElementById('family-banner-name');
+  const bannerHelp = document.getElementById('family-banner-help');
+  const badge = document.getElementById('family-badge');
+  const homeEntry = document.getElementById('home-entry');
+  const linkForm = document.getElementById('link-form');
+  const linkInput = document.getElementById('link-input');
+  const linkError = document.getElementById('link-error');
 
-  function loadRecords() {
-    try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-      if (!Array.isArray(saved)) return [];
-      return saved.filter(row => row && typeof row.id === 'string' && typeof row.name === 'string' &&
-        Number.isInteger(Number(row.people)) && FamilyLogic.validISODate(row.from) && FamilyLogic.validISODate(row.to) && row.from <= row.to)
-        .map(row => ({
-          id: row.id, name: row.name.slice(0, 70), people: Number(row.people), from: row.from, to: row.to,
-          periods: Array.isArray(row.periods) ? row.periods.filter(value => Object.hasOwn(PERIOD_LABELS, value)) : [],
-          activities: Array.isArray(row.activities) ? row.activities.filter(value => Object.hasOwn(ACTIVITY_LABELS, value)) : [],
-          customActivity: typeof row.customActivity === 'string' ? row.customActivity.slice(0, 240) : ''
-        }));
-    } catch {
-      return [];
-    }
+  let family = null;
+  let records = [];
+
+  // ---------------------------------------------------------
+  //  Utilidades
+  // ---------------------------------------------------------
+  function tokenDeLaUrl() {
+    const match = location.pathname.match(/^\/f\/([A-Za-z0-9-]{8,64})\/?$/);
+    return match ? match[1] : null;
   }
 
-  function storeRecords(nextRecords) {
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(nextRecords));
-      return true;
-    } catch {
-      return false;
-    }
+  function tokenDeTexto(valor) {
+    const raw = String(valor || '').trim();
+    const match = raw.match(/\/f\/([A-Za-z0-9-]{8,64})/);
+    if (match) return match[1];
+    return /^[A-Za-z0-9-]{8,64}$/.test(raw) ? raw : null;
   }
 
-  function makeId() {
-    return globalThis.crypto && typeof crypto.randomUUID === 'function'
-      ? crypto.randomUUID()
-      : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+  async function api(path, options = {}) {
+    const response = await fetch(path, {
+      cache: 'no-store',
+      ...options,
+      headers: { accept: 'application/json', ...(options.headers || {}) }
+    });
+    let body = null;
+    try { body = await response.json(); } catch { body = null; }
+    if (!response.ok) {
+      const error = new Error((body && body.error) || `Error ${response.status}`);
+      error.status = response.status;
+      error.body = body;
+      throw error;
+    }
+    return body;
+  }
+
+  function mensajeDeError(error, porDefecto) {
+    if (!error || !error.status) return 'No pudimos conectar con el servidor. Revisa tu internet e intenta de nuevo.';
+    if (error.status === 503) return 'La base de datos todavía no está conectada. La organización debe activarla.';
+    if (error.status === 404) return 'Este enlace ya no está disponible. Pídele uno nuevo a la organización.';
+    if (error.status === 401 || error.status === 403) return 'No tienes permiso para esta acción.';
+    return (error.body && error.body.error) || porDefecto;
   }
 
   function chosen(name) {
@@ -70,8 +93,10 @@
   }
 
   function setChoices(name, values) {
-    const selected = new Set(values);
-    document.querySelectorAll(`input[name="${name}"]`).forEach(input => { input.checked = selected.has(input.value); });
+    const selected = new Set(Array.isArray(values) ? values : []);
+    document.querySelectorAll(`input[name="${name}"]`).forEach(input => {
+      input.checked = selected.has(input.value);
+    });
   }
 
   function showFeedback(message, kind = 'success') {
@@ -79,9 +104,18 @@
     feedback.dataset.kind = kind === 'error' ? 'error' : 'success';
   }
 
+  function showFormError(message) {
+    formError.textContent = message;
+  }
+
   function clearErrors() {
     formError.textContent = '';
     showFeedback('');
+  }
+
+  function setBusy(busy, label) {
+    submitButton.disabled = busy;
+    submitButton.textContent = busy ? (label || 'Guardando…') : 'Guardar respuesta';
   }
 
   function formatDate(isoDate, includeYear = true) {
@@ -102,6 +136,70 @@
     return element;
   }
 
+  // ---------------------------------------------------------
+  //  Vista según el modo (público o panel familiar)
+  // ---------------------------------------------------------
+  function aplicarModo() {
+    document.body.dataset.mode = modoFamilia ? 'familia' : 'publico';
+    document.querySelector('.workspace').classList.toggle('home-mode', !modoFamilia);
+    homeEntry.hidden = modoFamilia;
+    banner.hidden = !modoFamilia;
+    document.querySelector('.responses').hidden = true;
+    cancelEditButton.hidden = true;
+
+    if (modoFamilia) {
+      document.getElementById('status-text').textContent = 'Panel familiar';
+      notice.className = 'notice ok';
+      noticeText.innerHTML = '<strong>Tu enlace es privado:</strong> con él puedes guardar y actualizar tu respuesta. Los resultados de abajo se actualizan con lo que responde toda la familia.';
+      document.getElementById('footer-note').textContent = 'Tus respuestas se guardan de forma privada y solo se comparten contigo y con la organización.';
+      formTitle.textContent = 'Tu respuesta';
+      formHelp.textContent = 'Actualiza los datos cuando quieras. Todo queda guardado con tu enlace.';
+      setBusy(true, 'Cargando…');
+    } else {
+      document.getElementById('status-text').textContent = 'Resultados generales';
+      notice.className = 'notice';
+      noticeText.innerHTML = '<strong>Acceso con enlace:</strong> cada familia entra a su propio panel con el link que le compartieron. Aquí abajo ves el resumen general de la celebración.';
+      document.getElementById('footer-note').textContent = 'Cada familia administra su propia respuesta; la organización puede ver y exportar el resumen.';
+    }
+  }
+
+  // ---------------------------------------------------------
+  //  Resumen (sin nombres)
+  // ---------------------------------------------------------
+  async function cargarResumen() {
+    try {
+      const data = await api('/api/resumen');
+      records = (Array.isArray(data.filas) ? data.filas : []).map((row, index) => ({
+        id: `fila-${index}`,
+        name: '',
+        people: Number(row.people) || 0,
+        from: row.from,
+        to: row.to,
+        periods: Array.isArray(row.periods) ? row.periods : [],
+        activities: Array.isArray(row.activities) ? row.activities : [],
+        customActivity: ''
+      }));
+      render();
+    } catch (error) {
+      if (error.status === 503) {
+        notice.className = 'notice error';
+        noticeText.innerHTML = '<strong>Base de datos pendiente:</strong> falta conectar el almacenamiento (KV) en Cloudflare. Mientras tanto, las respuestas no se pueden guardar.';
+      }
+      render();
+    }
+  }
+
+  function render() {
+    const totalPeople = records.reduce((sum, row) => sum + row.people, 0);
+    document.getElementById('family-count').textContent = String(records.length);
+    document.getElementById('people-count').textContent = String(totalPeople);
+    const result = FamilyLogic.recommendBestDates(records, EVENT_START, EVENT_END);
+    renderRecommendation(result, totalPeople);
+    renderAvailability(result, totalPeople);
+    renderRankList(document.getElementById('period-results'), FamilyLogic.countSelections(records, 'periods'), PERIOD_LABELS, 'Aún no hay votos.');
+    renderRankList(document.getElementById('activity-results'), FamilyLogic.countSelections(records, 'activities'), ACTIVITY_LABELS, 'Aún no hay ideas votadas.');
+  }
+
   function renderRecommendation(result, totalPeople) {
     const host = document.getElementById('date-recommendations');
     host.replaceChildren();
@@ -113,7 +211,8 @@
     const dayCard = create('article', 'recommendation');
     dayCard.append(create('p', 'recommendation-label', 'Mejor opción · 1 día'));
     dayCard.append(create('p', 'recommendation-date', formatDate(result.bestDay.date)));
-    dayCard.append(create('p', 'recommendation-meta', `${result.bestDay.people} de ${totalPeople} personas · ${result.bestDay.families} familias disponibles`));
+    const familiasDia = result.bestDay.families;
+    dayCard.append(create('p', 'recommendation-meta', `${result.bestDay.people} de ${totalPeople} personas · ${familiasDia} ${familiasDia === 1 ? 'familia disponible' : 'familias disponibles'}`));
     host.append(dayCard);
 
     const twoDayCard = create('article', 'recommendation secondary');
@@ -178,57 +277,61 @@
     }
   }
 
-  function renderTable() {
-    responseRows.replaceChildren();
-    const empty = document.getElementById('table-empty');
-    empty.hidden = records.length > 0;
-    document.getElementById('export-button').disabled = records.length === 0;
-    document.getElementById('response-count-label').textContent = records.length
-      ? `${records.length} ${records.length === 1 ? 'familia ha' : 'familias han'} respondido en este navegador.`
-      : 'Todavía no hay respuestas guardadas en este navegador.';
+  // ---------------------------------------------------------
+  //  Panel familiar
+  // ---------------------------------------------------------
+  function aplicarfamilia(datos) {
+    family = datos;
+    bannerName.textContent = datos.name || 'Mi familia';
+    const respondida = Number(datos.people) >= 1 && FamilyLogic.validISODate(datos.from) && FamilyLogic.validISODate(datos.to);
+    badge.textContent = respondida ? 'Respondida' : 'Pendiente';
+    badge.classList.toggle('pending', !respondida);
+    bannerHelp.textContent = respondida
+      ? 'Ya tenemos tu respuesta. Puedes actualizarla cuando quieras; este enlace es personal.'
+      : 'Completa el formulario de abajo. Este enlace es personal y no necesitas contraseña.';
 
-    for (const record of records) {
-      const row = document.createElement('tr');
-      const family = create('td', '', record.name);
-      const people = create('td', '', String(record.people));
-      const availability = create('td', '', dateSpan(record.from, record.to));
-      const selectedLabels = record.periods.map(id => PERIOD_LABELS[id]).concat(record.activities.map(id => ACTIVITY_LABELS[id]));
-      if (record.customActivity) selectedLabels.push(record.customActivity);
-      const choices = create('td', '', selectedLabels.length ? selectedLabels.join(' · ') : '—');
-      const actions = create('td');
-      const actionGroup = create('div', 'row-actions');
-      const editButton = create('button', 'text-button', 'Editar');
-      editButton.type = 'button';
-      editButton.addEventListener('click', () => beginEdit(record.id));
-      const deleteButton = create('button', 'text-button delete', 'Eliminar');
-      deleteButton.type = 'button';
-      deleteButton.addEventListener('click', () => deleteRecord(record.id));
-      actionGroup.append(editButton, deleteButton);
-      actions.append(actionGroup);
-      row.append(family, people, availability, choices, actions);
-      responseRows.append(row);
+    nameInput.value = datos.name || '';
+    document.getElementById('people').value = Number(datos.people) >= 1 ? datos.people : 1;
+    fromInput.value = datos.from || '';
+    toInput.value = datos.to || '';
+    toInput.min = fromInput.value || EVENT_START;
+    document.getElementById('custom-idea').value = datos.customActivity || '';
+    setChoices('periods', datos.periods);
+    setChoices('activities', datos.activities);
+
+    formTitle.textContent = respondida ? `Actualiza tu respuesta, ${datos.name}` : `Hola, ${datos.name || 'familia'}`;
+    formHelp.textContent = respondida
+      ? 'Estos son los datos que ya guardaste. Cambia lo que necesites y pulsa Guardar.'
+      : 'Solo te tomará un minuto. Si algo cambia, puedes volver a este enlace y actualizarlo.';
+    setBusy(false);
+    if (respondida) {
+      showFeedback('Ya registramos tu respuesta. Puedes actualizarla cuando quieras.');
+    } else {
+      showFeedback('Tu enlace funciona. Completa el formulario para responder.');
     }
   }
 
-  function render() {
-    const totalPeople = records.reduce((sum, row) => sum + row.people, 0);
-    document.getElementById('family-count').textContent = String(records.length);
-    document.getElementById('people-count').textContent = String(totalPeople);
-    const result = FamilyLogic.recommendBestDates(records, EVENT_START, EVENT_END);
-    renderRecommendation(result, totalPeople);
-    renderAvailability(result, totalPeople);
-    renderRankList(document.getElementById('period-results'), FamilyLogic.countSelections(records, 'periods'), PERIOD_LABELS, 'Aún no hay votos.');
-    renderRankList(document.getElementById('activity-results'), FamilyLogic.countSelections(records, 'activities'), ACTIVITY_LABELS, 'Aún no hay ideas votadas.');
-    renderTable();
+  async function cargarFamilia() {
+    try {
+      const datos = await api(`/api/familia/${token}`);
+      aplicarfamilia(datos);
+    } catch (error) {
+      setBusy(true, 'No disponible');
+      bannerHelp.textContent = 'No pudimos cargar tu panel.';
+      badge.textContent = 'Sin acceso';
+      badge.classList.add('pending');
+      notice.className = 'notice error';
+      noticeText.innerHTML = '<strong>No pudimos abrir tu panel:</strong> ' + mensajeDeError(error, 'Revisa el enlace e intenta de nuevo.');
+      showFormError(mensajeDeError(error, 'Enlace no válido.'));
+    }
   }
 
-  function normalizedName(value) {
-    return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ').trim().toLocaleLowerCase('es');
-  }
-
+  // ---------------------------------------------------------
+  //  Formularios
+  // ---------------------------------------------------------
   function formData() {
     return {
-      name: document.getElementById('family-name').value.trim(),
+      name: nameInput.value.trim(),
       people: Number(document.getElementById('people').value),
       from: fromInput.value,
       to: toInput.value,
@@ -244,52 +347,15 @@
     if (target) target.focus();
   }
 
-  function beginEdit(id) {
-    const record = records.find(item => item.id === id);
-    if (!record) return;
-    editingId = id;
-    document.getElementById('family-name').value = record.name;
-    document.getElementById('people').value = record.people;
-    fromInput.value = record.from;
-    toInput.value = record.to;
-    document.getElementById('custom-idea').value = record.customActivity;
-    setChoices('periods', record.periods);
-    setChoices('activities', record.activities);
-    submitButton.textContent = 'Actualizar respuesta';
-    cancelEditButton.hidden = false;
-    document.getElementById('form-title').textContent = 'Editar respuesta de ' + record.name;
-    clearErrors();
-    document.getElementById('family-name').focus();
-    document.querySelector('.form-panel').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
-
-  function resetForm() {
-    form.reset();
-    editingId = null;
-    submitButton.textContent = 'Guardar respuesta';
-    cancelEditButton.hidden = true;
-    document.getElementById('form-title').textContent = '¿Cuándo y cómo puedes celebrar?';
-    toInput.min = EVENT_START;
-    clearErrors();
-  }
-
-  function deleteRecord(id) {
-    const record = records.find(item => item.id === id);
-    if (!record || !window.confirm(`¿Eliminar la respuesta de ${record.name}?`)) return;
-    const nextRecords = records.filter(item => item.id !== id);
-    if (!storeRecords(nextRecords)) {
-      showFeedback('No se pudo guardar el cambio en este navegador.', 'error');
-      return;
-    }
-    records = nextRecords;
-    if (editingId === id) resetForm();
-    render();
-    showFeedback('Respuesta eliminada.');
-  }
-
-  form.addEventListener('submit', event => {
+  form.addEventListener('submit', async event => {
     event.preventDefault();
     clearErrors();
+
+    if (!modoFamilia) {
+      showFormError('Abre tu enlace personal para responder.');
+      return;
+    }
+
     const data = formData();
     const errors = FamilyLogic.validateResponse(data);
     if (data.periods.length > 3) errors.push('periods');
@@ -302,33 +368,37 @@
         periods: data.periods.length > 3 ? 'Elige como máximo 3 periodos.' : 'Marca al menos un periodo preferido.',
         activities: data.activities.length > 3 ? 'Elige como máximo 3 ideas.' : 'Marca al menos una idea o escribe una propuesta propia.'
       };
-      formError.textContent = messages[errors[0]] || 'Revisa los campos marcados.';
+      showFormError(messages[errors[0]] || 'Revisa los campos marcados.');
       focusForError(errors);
       return;
     }
 
-    const existingByName = records.find(row => normalizedName(row.name) === normalizedName(data.name));
-    const targetId = editingId || (existingByName && existingByName.id) || makeId();
-    const nextRecord = { ...data, id: targetId };
-    const nextRecords = records.some(row => row.id === targetId)
-      ? records.map(row => row.id === targetId ? nextRecord : row)
-      : [...records, nextRecord];
-    if (!storeRecords(nextRecords)) {
-      showFeedback('No se pudo guardar. El navegador podría tener el almacenamiento desactivado o lleno.', 'error');
-      return;
+    setBusy(true);
+    try {
+      const guardada = await api(`/api/familia/${token}`, {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      aplicarfamilia(guardada);
+      showFeedback('¡Listo! Tu respuesta quedó guardada. Puedes volver a este enlace para cambiarla.');
+      await cargarResumen();
+    } catch (error) {
+      const campos = error.body && error.body.campos;
+      showFormError(campos && campos.length
+        ? 'Revisa los campos marcados: ' + campos.join(', ')
+        : mensajeDeError(error, 'No se pudo guardar la respuesta.'));
+      showFeedback('No se pudo guardar. Intenta otra vez.', 'error');
+    } finally {
+      setBusy(false);
     }
-    const wasUpdate = Boolean(editingId || existingByName);
-    records = nextRecords;
-    resetForm();
-    render();
-    showFeedback(wasUpdate ? 'Respuesta actualizada en este navegador.' : 'Respuesta guardada en este navegador.');
   });
 
-  cancelEditButton.addEventListener('click', resetForm);
   fromInput.addEventListener('change', () => {
     toInput.min = fromInput.value || EVENT_START;
     if (toInput.value && fromInput.value && toInput.value < fromInput.value) toInput.value = '';
   });
+
   for (const groupName of ['periods', 'activities']) {
     document.querySelectorAll(`input[name="${groupName}"]`).forEach(input => {
       input.addEventListener('change', () => {
@@ -344,30 +414,22 @@
     });
   }
 
-  function csvCell(value) {
-    let text = String(value ?? '');
-    if (/^[\u0000-\u0020]*[=+\-@]/.test(text)) text = `'${text}`;
-    return `"${text.replace(/"/g, '""')}"`;
-  }
-
-  document.getElementById('export-button').addEventListener('click', () => {
-    const headers = ['Familia', 'Personas', 'Libre desde', 'Libre hasta', 'Periodos preferidos', 'Ideas', 'Otra propuesta'];
-    const lines = [headers, ...records.map(row => [
-      row.name, row.people, row.from, row.to,
-      row.periods.map(id => PERIOD_LABELS[id] || id).join(' | '),
-      row.activities.map(id => ACTIVITY_LABELS[id] || id).join(' | '), row.customActivity
-    ])].map(line => line.map(csvCell).join(',')).join('\r\n');
-    const blob = new Blob(['\uFEFF', lines], { type: 'text/csv;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'respuestas-encuentro-familiar.csv';
-    document.body.append(link);
-    link.click();
-    link.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  linkForm.addEventListener('submit', event => {
+    event.preventDefault();
+    linkError.textContent = '';
+    const destino = tokenDeTexto(linkInput.value);
+    if (!destino) {
+      linkError.textContent = 'Ese enlace no parece válido. Copia el link completo que te compartieron.';
+      linkInput.focus();
+      return;
+    }
+    location.href = `/f/${destino}`;
   });
 
-  document.getElementById('print-button').addEventListener('click', () => window.print());
-  render();
+  // ---------------------------------------------------------
+  //  Arranque
+  // ---------------------------------------------------------
+  aplicarModo();
+  cargarResumen();
+  if (modoFamilia) cargarFamilia();
 })();

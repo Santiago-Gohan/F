@@ -1,0 +1,23 @@
+name = "family"
+main = "worker.js"
+compatibility_date = "2026-10-01"
+
+# Archivos estáticos (index.html, app.js, admin.html, admin.js...)
+[assets]
+directory = "."
+binding = "ASSETS"
+run_worker_first = true
+
+# Base de datos KV.
+# 1. Ejecuta:  npx wrangler kv namespace create FAMILIA
+# 2. Pega aquí el id que te devuelve y descomenta estas líneas.
+#    (También puedes crearlo desde el panel de Cloudflare:
+#     Storage & Databases → KV → Create instance, y luego
+#     Settings → Bindings → Add → KV namespace, variable FAMILIA)
+#
+# [[kv_namespaces]]
+# binding = "FAMILIA"
+# id = "PEGA_AQUI_EL_ID"
+
+[observability]
+enabled = true
