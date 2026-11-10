@@ -172,7 +172,7 @@
   }
 
   function mensajeWhatsApp(familia) {
-    return `Hola 👋 Te comparto tu enlace personal para el Encuentro familiar (cumpleaños de los abuelos).\n\n${enlaceDe(familia)}\n\nEntra, completa tu disponibilidad y guarda. No necesitas contraseña ni crear cuenta.`;
+    return `Hola 👋 Te comparto tu enlace personal para el Encuentro Barrera (cumpleaños de los abuelos).\n\n${enlaceDe(familia)}\n\nEntra, completa tu disponibilidad y guarda. No necesitas contraseña ni crear cuenta.`;
   }
 
   function abrirWhatsApp(familia) {
@@ -347,7 +347,7 @@
 
   document.getElementById('wa-created').addEventListener('click', () => {
     const nombre = createdName.textContent || 'Familia';
-    const mensaje = `Hola 👋 Te comparto el enlace personal de ${nombre} para el Encuentro familiar.\n\n${createdLink.value}\n\nEntra, completa tu disponibilidad y guarda. No necesitas contraseña ni crear cuenta.`;
+    const mensaje = `Hola 👋 Te comparto el enlace personal de ${nombre} para el Encuentro Barrera.\n\n${createdLink.value}\n\nEntra, completa tu disponibilidad y guarda. No necesitas contraseña ni crear cuenta.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank', 'noopener');
   });
 

@@ -1,4 +1,4 @@
-# Encuentro familiar
+# Encuentro Barrera
 
 Aplicación web para coordinar la celebración de los cumpleaños de los abuelos: cada familia entra con un **enlace único** (sin cuenta ni contraseña), registra su disponibilidad e ideas, y la organización administra todo desde un panel privado.
 
