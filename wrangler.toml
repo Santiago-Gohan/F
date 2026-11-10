@@ -14,10 +14,9 @@ run_worker_first = true
 #    (También puedes crearlo desde el panel de Cloudflare:
 #     Storage & Databases → KV → Create instance, y luego
 #     Settings → Bindings → Add → KV namespace, variable FAMILIA)
-#
-# [[kv_namespaces]]
-# binding = "FAMILIA"
-# id = "PEGA_AQUI_EL_ID"
+[[kv_namespaces]]
+binding = "FAMILIA"
+id = "be1f60443f354f16a4dd465c1a3649db"
 
 [observability]
 enabled = true
