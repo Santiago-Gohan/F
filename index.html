@@ -263,7 +263,7 @@
           <div class="panel-head">
             <p class="section-index">01 · Responder</p>
             <h2 id="form-title">Confirma tu asistencia</h2>
-            <p id="form-help">Escribe tu nombre y apellido y cuántas personas posiblemente pueden asistir.</p>
+            <p id="form-help">Escribe tu nombre y apellido, cuántas personas posiblemente pueden asistir y en qué fechas.</p>
           </div>
           <form id="family-form" class="form-body" novalidate>
             <div class="field">
@@ -274,7 +274,17 @@
               <label for="people">¿Cuántas personas posiblemente pueden asistir? <span class="required" aria-hidden="true">*</span></label>
               <input id="people" name="people" type="number" min="1" max="30" step="1" inputmode="numeric" placeholder="Ej. 4" required>
             </div>
-            <p class="helper">Escribe tu nombre completo y el número aproximado de personas que podrían asistir.</p>
+            <div class="date-grid">
+              <div class="field">
+                <label for="available-from">Disponible desde <span class="required" aria-hidden="true">*</span></label>
+                <input id="available-from" name="availableFrom" type="date" min="2026-12-01" max="2027-02-15" required>
+              </div>
+              <div class="field">
+                <label for="available-to">Disponible hasta, inclusive <span class="required" aria-hidden="true">*</span></label>
+                <input id="available-to" name="availableTo" type="date" min="2026-12-01" max="2027-02-15" required>
+              </div>
+            </div>
+            <p class="helper">Indica el tramo en que tu grupo completo podría asistir. Fechas de referencia: 1 dic. 2026 a 15 feb. 2027.</p>
             <p class="form-error" id="form-error" role="alert" aria-live="polite"></p>
             <div class="form-actions">
               <button class="btn btn-primary" id="submit-button" type="submit">Guardar respuesta</button>

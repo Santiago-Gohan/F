@@ -147,6 +147,21 @@
     return new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
   }
 
+  function fechaCorta(iso) {
+    if (!iso) return '';
+    const d = new Date(`${iso}T00:00:00`);
+    if (!Number.isFinite(d.getTime())) return '';
+    return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
+  }
+
+  function rangoFechas(desde, hasta) {
+    const a = fechaCorta(desde);
+    const b = fechaCorta(hasta);
+    if (!a && !b) return '—';
+    if (a && b) return `${a} – ${b}`;
+    return a || b;
+  }
+
   function enlaceDe(familia) {
     return `${location.origin}/f/${familia.token}`;
   }
@@ -166,7 +181,7 @@
   }
 
   function mensajeWhatsApp(familia) {
-    return `Hola 👋 Te comparto tu enlace personal para el Encuentro Barrera (cumpleaños de los abuelos).\n\n${enlaceDe(familia)}\n\nEntra, escribe tu nombre y apellido y cuántas personas posiblemente pueden asistir. No necesitas contraseña ni crear cuenta.`;
+    return `Hola 👋 Te comparto tu enlace personal para el Encuentro Barrera (cumpleaños de los abuelos).\n\n${enlaceDe(familia)}\n\nEntra, escribe tu nombre y apellido, cuántas personas posiblemente pueden asistir y en qué fechas están disponibles. No necesitas contraseña ni crear cuenta.`;
   }
 
   function abrirWhatsApp(familia) {
@@ -207,7 +222,8 @@
     const meta = elemento('dl', 'family-meta');
     const datos = [
       ['Nombre y apellido', respondida ? familia.respondent : 'Sin responder'],
-      ['Personas', respondida ? String(familia.people) : '—'],
+      ['Personas', respondida ? String(familia.people) : '-'],
+      ['Disponible', respondida ? rangoFechas(familia.availableFrom, familia.availableTo) : '-'],
       ['Actualizado', fecha(familia.updatedAt)]
     ];
     for (const [clave, valor] of datos) {
@@ -343,7 +359,7 @@
 
   document.getElementById('wa-created').addEventListener('click', () => {
     const nombre = createdName.textContent || 'Familia';
-    const mensaje = `Hola 👋 Te comparto el enlace personal de ${nombre} para el Encuentro Barrera.\n\n${createdLink.value}\n\nEntra, escribe tu nombre y apellido y cuántas personas posiblemente pueden asistir. No necesitas contraseña ni crear cuenta.`;
+    const mensaje = `Hola 👋 Te comparto el enlace personal de ${nombre} para el Encuentro Barrera.\n\n${createdLink.value}\n\nEntra, escribe tu nombre y apellido, cuántas personas posiblemente pueden asistir y en qué fechas están disponibles. No necesitas contraseña ni crear cuenta.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank', 'noopener');
   });
 

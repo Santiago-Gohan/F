@@ -13,6 +13,8 @@
   const submitButton = document.getElementById('submit-button');
   const respondentInput = document.getElementById('respondent');
   const peopleInput = document.getElementById('people');
+  const fromInput = document.getElementById('available-from');
+  const toInput = document.getElementById('available-to');
   const formTitle = document.getElementById('form-title');
   const formHelp = document.getElementById('form-help');
   const notice = document.getElementById('mode-notice');
@@ -131,6 +133,20 @@
     return new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium' }).format(fecha);
   }
 
+  function fechaDisponible(iso) {
+    if (!iso) return '';
+    const fecha = new Date(`${iso}T00:00:00`);
+    if (!Number.isFinite(fecha.getTime())) return '';
+    return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short' }).format(fecha);
+  }
+
+  function rangoDisponible(desde, hasta) {
+    const a = fechaDisponible(desde);
+    const b = fechaDisponible(hasta);
+    if (!a || !b) return '';
+    return a === b ? a : `${a} – ${b}`;
+  }
+
   function renderResumen(filas) {
     if (!modoFamilia) {
       summaryPanel.hidden = true;
@@ -152,6 +168,12 @@
       if (fecha) {
         const detalle = document.createElement('small');
         detalle.textContent = `Respondió el ${fecha}`;
+        info.append(detalle);
+      }
+      const rango = rangoDisponible(fila.availableFrom, fila.availableTo);
+      if (rango) {
+        const detalle = document.createElement('small');
+        detalle.textContent = `Disponible ${rango}`;
         info.append(detalle);
       }
       const cantidad = document.createElement('span');
@@ -211,7 +233,7 @@
     formTitle.textContent = editando ? 'Actualiza tu respuesta' : `Hola, ${nombreFamilia || 'familia'}`;
     formHelp.textContent = editando
       ? 'Cambia lo que necesites y pulsa Guardar.'
-      : 'Escribe tu nombre y apellido y cuántas personas posiblemente pueden asistir.';
+      : 'Escribe tu nombre y apellido, cuántas personas posiblemente pueden asistir y en qué fechas.';
     setBusy(false);
     if (!editando) showFeedback('Tu enlace funciona. Completa los datos para responder.');
   }
@@ -227,6 +249,8 @@
 
     respondentInput.value = datos.respondent || '';
     peopleInput.value = Number(datos.people) >= 1 ? String(datos.people) : '';
+    fromInput.value = datos.availableFrom || '';
+    toInput.value = datos.availableTo || '';
 
     if (lista) mostrarAgradecimiento(datos);
     else mostrarFormulario(false, datos.name);
@@ -240,6 +264,8 @@
         respuestaLocal = {
           respondent: datos.respondent,
           people: Number(datos.people),
+          availableFrom: datos.availableFrom || '',
+          availableTo: datos.availableTo || '',
           updatedAt: datos.updatedAt
         };
       }
@@ -268,16 +294,24 @@
 
     const data = {
       respondent: respondentInput.value.trim(),
-      people: Number(peopleInput.value)
+      people: Number(peopleInput.value),
+      availableFrom: fromInput.value,
+      availableTo: toInput.value
     };
     const errors = FamilyLogic.validateResponse(data);
     if (errors.length) {
       const messages = {
         respondent: 'Escribe tu nombre y apellido.',
-        people: 'Indica una cantidad entre 1 y 30 personas.'
+        people: 'Indica una cantidad entre 1 y 30 personas.',
+        availableFrom: 'Indica desde qué fecha están disponibles.',
+        availableTo: 'Indica hasta qué fecha están disponibles (debe ser igual o posterior al inicio).'
       };
       showFormError(messages[errors[0]] || 'Revisa los datos.');
-      (errors[0] === 'respondent' ? respondentInput : peopleInput).focus();
+      const campo = errors[0] === 'respondent' ? respondentInput
+        : errors[0] === 'people' ? peopleInput
+        : errors[0] === 'availableFrom' ? fromInput
+        : toInput;
+      campo.focus();
       return;
     }
 
@@ -292,6 +326,8 @@
       respuestaLocal = {
         respondent: guardada.respondent,
         people: Number(guardada.people),
+        availableFrom: guardada.availableFrom || '',
+        availableTo: guardada.availableTo || '',
         updatedAt: guardada.updatedAt
       };
       await cargarResumen();

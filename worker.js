@@ -26,14 +26,26 @@ function texto(valor, max) {
   return String(valor == null ? '' : valor).trim().slice(0, max);
 }
 
+function fechaIso(valor) {
+  const v = texto(valor, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '';
+}
+
 function normalizar(body) {
   const datos = {
     respondent: texto(body && body.respondent, 70),
-    people: Number(body && body.people)
+    people: Number(body && body.people),
+    availableFrom: fechaIso(body && body.availableFrom),
+    availableTo: fechaIso(body && body.availableTo)
   };
   const errores = [];
   if (!datos.respondent) errores.push('respondent');
   if (!Number.isInteger(datos.people) || datos.people < 1 || datos.people > 30) errores.push('people');
+  if (!datos.availableFrom) errores.push('availableFrom');
+  if (!datos.availableTo) errores.push('availableTo');
+  if (datos.availableFrom && datos.availableTo && datos.availableFrom > datos.availableTo) {
+    errores.push('availableTo');
+  }
   return { datos, errores };
 }
 
@@ -72,6 +84,8 @@ async function resumen(env) {
     filas: conRespuesta.map(f => ({
       respondent: f.respondent,
       people: Number(f.people),
+      availableFrom: f.availableFrom || '',
+      availableTo: f.availableTo || '',
       updatedAt: f.updatedAt
     }))
   };
@@ -111,11 +125,13 @@ function csvCampo(valor) {
 async function exportarCsv(env) {
   const familias = (await listarFamilias(env))
     .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
-  const cabecera = ['Familia', 'Nombre y apellido', 'Personas', 'Actualizado'];
+  const cabecera = ['Familia', 'Nombre y apellido', 'Personas', 'Disponible desde', 'Disponible hasta', 'Actualizado'];
   const filas = familias.map(f => [
     f.name,
     respondio(f) ? f.respondent : '',
     respondio(f) ? f.people : '',
+    respondio(f) ? (f.availableFrom || '') : '',
+    respondio(f) ? (f.availableTo || '') : '',
     f.updatedAt || ''
   ]);
   const lineas = [cabecera, ...filas].map(fila => fila.map(csvCampo).join(',')).join('\r\n');
@@ -206,6 +222,8 @@ async function manejarApi(request, env, url) {
         name: nombre,
         respondent: '',
         people: 0,
+        availableFrom: '',
+        availableTo: '',
         createdAt: ahora,
         updatedAt: ahora
       };

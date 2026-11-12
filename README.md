@@ -1,6 +1,6 @@
 # Encuentro Barrera
 
-Aplicación web para coordinar la celebración de los cumpleaños de los abuelos: cada familia entra con un **enlace único** (sin cuenta ni contraseña), registra su nombre y la cantidad de personas que posiblemente pueden asistir, y la organización administra los resultados desde un panel privado.
+Aplicación web para coordinar la celebración de los cumpleaños de los abuelos: cada familia entra con un **enlace único** (sin cuenta ni contraseña), registra su nombre, la cantidad de personas que posiblemente pueden asistir y sus fechas de disponibilidad, y la organización administra los resultados desde un panel privado.
 
 - Web pública / resumen: https://family.nnking919.workers.dev
 - Panel de administración: https://family.nnking919.workers.dev/admin
@@ -10,7 +10,7 @@ Aplicación web para coordinar la celebración de los cumpleaños de los abuelos
 | Ruta | Para quién | Qué hace |
 |---|---|---|
 | `/` | Todos | Acceso a la encuesta pegando el enlace familiar. No muestra resultados. |
-| `/f/<token>` | Cada familia | Su encuesta personal: nombre, apellido y cantidad de asistentes. Sin login. |
+| `/f/<token>` | Cada familia | Su encuesta personal: nombre, apellido, cantidad de asistentes y fechas de disponibilidad. Sin login. |
 | `/admin` | Solo el organizador | Crea familias, copia enlaces, ve los resultados, renombra, elimina y exporta CSV. |
 
 Cada familia recibe un enlace largo e imposible de adivinar. Quien tenga el enlace puede responder; la organización puede eliminar el enlace en cualquier momento.
@@ -57,7 +57,7 @@ Archivos que se publican: `index.html`, `app.js`, `family-logic.js`, `admin.html
 ## Funciones
 
 - Enlace único por familia, sin registro ni contraseña.
-- Encuesta con nombre y apellido y cantidad de personas que posiblemente pueden asistir.
+- Encuesta con nombre y apellido, cantidad de personas que posiblemente pueden asistir y tramo de fechas disponibles.
 - Mensaje de agradecimiento al guardar: “Esperamos que puedas asistir. Pronto Santiago Barrera compartirá los resultados.”
 - La encuesta no muestra resultados; el organizador los revisa y comparte desde su panel.
 - Panel admin: métricas, creación de familias, copia de enlaces, WhatsApp, renombrado, eliminación y CSV.
