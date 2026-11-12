@@ -58,6 +58,7 @@
     .field { margin-bottom: 17px; }
     .field label, .field-label { display: block; margin-bottom: 6px; color: #394740; font-size: 12px; font-weight: 700; }
     .required { color: var(--clay); }
+    .optional { color: var(--muted); font-weight: 400; }
     input[type="text"], input[type="number"], input[type="date"], textarea {
       width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #d5d9ce; border-radius: 2px; background: #fff; color: var(--ink); outline: none; transition: border-color .15s, box-shadow .15s;
     }
@@ -285,6 +286,10 @@
               </div>
             </div>
             <p class="helper">Indica el tramo en que tu grupo completo podría asistir. Fechas de referencia: 1 dic. 2026 a 15 feb. 2027.</p>
+            <div class="field">
+              <label for="proposal">¿Quieres proponer algo para el evento? <span class="optional">(opcional)</span></label>
+              <textarea id="proposal" name="proposal" maxlength="240" rows="3" placeholder="Ej. preparar un video con mensajes de la familia"></textarea>
+            </div>
             <p class="form-error" id="form-error" role="alert" aria-live="polite"></p>
             <div class="form-actions">
               <button class="btn btn-primary" id="submit-button" type="submit">Guardar respuesta</button>

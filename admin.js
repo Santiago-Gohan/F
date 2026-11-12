@@ -232,6 +232,12 @@
       bloque.append(elemento('dd', '', valor));
       meta.append(bloque);
     }
+
+    const propuesta = respondida ? (familia.proposal || '').trim() : '';
+    const bloquePropuesta = elemento('div', 'wide');
+    bloquePropuesta.append(elemento('dt', '', 'Propuesta para el evento'));
+    bloquePropuesta.append(elemento('dd', '', respondida ? (propuesta || 'Sin propuesta') : '-'));
+    meta.append(bloquePropuesta);
     card.append(meta);
 
     const linkRow = elemento('div', 'family-link');

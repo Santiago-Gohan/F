@@ -15,6 +15,7 @@
   const peopleInput = document.getElementById('people');
   const fromInput = document.getElementById('available-from');
   const toInput = document.getElementById('available-to');
+  const proposalInput = document.getElementById('proposal');
   const formTitle = document.getElementById('form-title');
   const formHelp = document.getElementById('form-help');
   const notice = document.getElementById('mode-notice');
@@ -251,6 +252,7 @@
     peopleInput.value = Number(datos.people) >= 1 ? String(datos.people) : '';
     fromInput.value = datos.availableFrom || '';
     toInput.value = datos.availableTo || '';
+    proposalInput.value = datos.proposal || '';
 
     if (lista) mostrarAgradecimiento(datos);
     else mostrarFormulario(false, datos.name);
@@ -296,7 +298,8 @@
       respondent: respondentInput.value.trim(),
       people: Number(peopleInput.value),
       availableFrom: fromInput.value,
-      availableTo: toInput.value
+      availableTo: toInput.value,
+      proposal: proposalInput.value.trim()
     };
     const errors = FamilyLogic.validateResponse(data);
     if (errors.length) {

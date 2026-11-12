@@ -36,7 +36,8 @@ function normalizar(body) {
     respondent: texto(body && body.respondent, 70),
     people: Number(body && body.people),
     availableFrom: fechaIso(body && body.availableFrom),
-    availableTo: fechaIso(body && body.availableTo)
+    availableTo: fechaIso(body && body.availableTo),
+    proposal: texto(body && body.proposal, 240)
   };
   const errores = [];
   if (!datos.respondent) errores.push('respondent');
@@ -125,13 +126,14 @@ function csvCampo(valor) {
 async function exportarCsv(env) {
   const familias = (await listarFamilias(env))
     .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
-  const cabecera = ['Familia', 'Nombre y apellido', 'Personas', 'Disponible desde', 'Disponible hasta', 'Actualizado'];
+  const cabecera = ['Familia', 'Nombre y apellido', 'Personas', 'Disponible desde', 'Disponible hasta', 'Propuesta', 'Actualizado'];
   const filas = familias.map(f => [
     f.name,
     respondio(f) ? f.respondent : '',
     respondio(f) ? f.people : '',
     respondio(f) ? (f.availableFrom || '') : '',
     respondio(f) ? (f.availableTo || '') : '',
+    respondio(f) ? (f.proposal || '') : '',
     f.updatedAt || ''
   ]);
   const lineas = [cabecera, ...filas].map(fila => fila.map(csvCampo).join(',')).join('\r\n');
@@ -224,6 +226,7 @@ async function manejarApi(request, env, url) {
         people: 0,
         availableFrom: '',
         availableTo: '',
+        proposal: '',
         createdAt: ahora,
         updatedAt: ahora
       };
