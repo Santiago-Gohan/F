@@ -1,37 +1,18 @@
 (() => {
   'use strict';
 
-  const EVENT_START = '2026-12-01';
-  const EVENT_END = '2027-02-15';
-  const PERIOD_LABELS = {
-    'dec-01-07': '1–7 dic. · Antes del cumpleaños del abuelo',
-    'dec-08-15': '8–15 dic. · Cumpleaños del abuelo',
-    'dec-16-23': '16–23 dic. · Antes de Navidad',
-    'dec-24-25': '24–25 dic. · Navidad',
-    'dec-26-30': '26–30 dic. · Entre fiestas',
-    'dec-31-jan-01': '31 dic.–1 ene. · Año Nuevo',
-    'jan-02-11': '2–11 ene. · Inicio de año',
-    'jan-12-15': '12–15 ene. · Mediados de enero',
-    'jan-16-25': '16–25 ene. · Cumpleaños de la abuela',
-    'jan-26-feb-15': '26 ene.–15 feb. · Otra fecha'
-  };
-  const ACTIVITY_LABELS = {
-    lunch: 'Almuerzo o cena familiar', picnic: 'Parrillada o picnic', cake: 'Torta, brindis y palabras',
-    music: 'Música, baile y karaoke', games: 'Juegos para todas las edades', memories: 'Fotos e historias familiares',
-    outing: 'Paseo o actividad fuera de casa', surprise: 'Un detalle sorpresa para los abuelos'
-  };
-
   const token = tokenDeLaUrl();
   const modoFamilia = Boolean(token);
 
   const form = document.getElementById('family-form');
+  const thankYou = document.getElementById('thank-you');
+  const thanksName = document.getElementById('thanks-name');
+  const editResponse = document.getElementById('edit-response');
   const formError = document.getElementById('form-error');
   const feedback = document.getElementById('form-feedback');
   const submitButton = document.getElementById('submit-button');
-  const cancelEditButton = document.getElementById('cancel-edit');
-  const fromInput = document.getElementById('available-from');
-  const toInput = document.getElementById('available-to');
-  const nameInput = document.getElementById('family-name');
+  const respondentInput = document.getElementById('respondent');
+  const peopleInput = document.getElementById('people');
   const formTitle = document.getElementById('form-title');
   const formHelp = document.getElementById('form-help');
   const notice = document.getElementById('mode-notice');
@@ -44,9 +25,14 @@
   const linkForm = document.getElementById('link-form');
   const linkInput = document.getElementById('link-input');
   const linkError = document.getElementById('link-error');
+  const summaryPanel = document.getElementById('summary-panel');
+  const summaryList = document.getElementById('summary-list');
+  const summaryFamilies = document.getElementById('summary-families');
+  const summaryPeople = document.getElementById('summary-people');
+  const summaryEmpty = document.getElementById('summary-empty');
 
-  let family = null;
-  let records = [];
+  let respuestaLocal = null;
+  let resumenFilas = [];
 
   // ---------------------------------------------------------
   //  Utilidades
@@ -88,17 +74,6 @@
     return (error.body && error.body.error) || porDefecto;
   }
 
-  function chosen(name) {
-    return [...document.querySelectorAll(`input[name="${name}"]:checked`)].map(input => input.value);
-  }
-
-  function setChoices(name, values) {
-    const selected = new Set(Array.isArray(values) ? values : []);
-    document.querySelectorAll(`input[name="${name}"]`).forEach(input => {
-      input.checked = selected.has(input.value);
-    });
-  }
-
   function showFeedback(message, kind = 'success') {
     feedback.textContent = message;
     feedback.dataset.kind = kind === 'error' ? 'error' : 'success';
@@ -118,22 +93,9 @@
     submitButton.textContent = busy ? (label || 'Guardando…') : 'Guardar respuesta';
   }
 
-  function formatDate(isoDate, includeYear = true) {
-    if (!FamilyLogic.validISODate(isoDate)) return 'Fecha no disponible';
-    return new Intl.DateTimeFormat('es-ES', {
-      day: 'numeric', month: 'long', ...(includeYear ? { year: 'numeric' } : {}), timeZone: 'UTC'
-    }).format(new Date(`${isoDate}T12:00:00Z`));
-  }
-
-  function dateSpan(from, to) {
-    return from === to ? formatDate(from) : `${formatDate(from, false)} – ${formatDate(to)}`;
-  }
-
-  function create(tag, className, text) {
-    const element = document.createElement(tag);
-    if (className) element.className = className;
-    if (text !== undefined) element.textContent = text;
-    return element;
+  function respondida(datos) {
+    return Boolean(datos && typeof datos.respondent === 'string' && datos.respondent.trim()) &&
+      Number(datos.people) >= 1;
   }
 
   // ---------------------------------------------------------
@@ -144,177 +106,143 @@
     document.querySelector('.workspace').classList.toggle('home-mode', !modoFamilia);
     homeEntry.hidden = modoFamilia;
     banner.hidden = !modoFamilia;
-    document.querySelector('.responses').hidden = true;
-    cancelEditButton.hidden = true;
 
     if (modoFamilia) {
       document.getElementById('status-text').textContent = 'Panel familiar';
       notice.className = 'notice ok';
-      noticeText.innerHTML = '<strong>Tu enlace es privado:</strong> con él puedes guardar y actualizar tu respuesta. Los resultados de abajo se actualizan con lo que responde toda la familia.';
+      noticeText.innerHTML = '<strong>Tu enlace es privado:</strong> con él puedes guardar y actualizar tu respuesta.';
       document.getElementById('footer-note').textContent = 'Tus respuestas se guardan de forma privada y solo se comparten contigo y con la organización.';
-      formTitle.textContent = 'Tu respuesta';
-      formHelp.textContent = 'Actualiza los datos cuando quieras. Todo queda guardado con tu enlace.';
       setBusy(true, 'Cargando…');
     } else {
-      document.getElementById('status-text').textContent = 'Resultados generales';
+      summaryPanel.hidden = true;
+      document.getElementById('status-text').textContent = 'Familia Barrera';
       notice.className = 'notice';
-      noticeText.innerHTML = '<strong>Acceso con enlace:</strong> cada familia entra a su propio panel con el link que le compartieron. Aquí abajo ves el resumen general de la celebración.';
+      noticeText.innerHTML = '<strong>Acceso con enlace:</strong> cada familia entra a su propio panel con el link que le compartieron.';
       document.getElementById('footer-note').textContent = 'Cada familia administra su propia respuesta; la organización puede ver y exportar el resumen.';
     }
   }
 
   // ---------------------------------------------------------
-  //  Resumen (sin nombres)
+  //  Participación (solo para familias con enlace)
   // ---------------------------------------------------------
+  function fechaRespuesta(iso) {
+    const fecha = new Date(iso);
+    if (!Number.isFinite(fecha.getTime())) return '';
+    return new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium' }).format(fecha);
+  }
+
+  function renderResumen(filas) {
+    if (!modoFamilia) {
+      summaryPanel.hidden = true;
+      return;
+    }
+    const lista = filas.filter(f => f && String(f.respondent || '').trim() && Number(f.people) >= 1);
+    summaryFamilies.textContent = String(lista.length);
+    summaryPeople.textContent = String(lista.reduce((suma, f) => suma + Number(f.people), 0));
+    summaryList.replaceChildren();
+
+    for (const fila of lista) {
+      const item = document.createElement('li');
+      item.className = 'summary-item';
+      const info = document.createElement('div');
+      const nombre = document.createElement('strong');
+      nombre.textContent = String(fila.respondent).trim();
+      info.append(nombre);
+      const fecha = fechaRespuesta(fila.updatedAt);
+      if (fecha) {
+        const detalle = document.createElement('small');
+        detalle.textContent = `Respondió el ${fecha}`;
+        info.append(detalle);
+      }
+      const cantidad = document.createElement('span');
+      const personas = Number(fila.people);
+      cantidad.textContent = `${personas} ${personas === 1 ? 'persona' : 'personas'}`;
+      item.append(info, cantidad);
+      summaryList.append(item);
+    }
+
+    summaryEmpty.hidden = lista.length > 0;
+    summaryPanel.hidden = lista.length === 0;
+  }
+
+  function combinarResumen(filas) {
+    const mapa = new Map();
+    const todas = respuestaLocal ? [...filas, respuestaLocal] : filas;
+    for (const fila of todas) {
+      const clave = String(fila && fila.respondent || '').trim().toLowerCase();
+      if (!clave || Number(fila.people) < 1) continue;
+      const previa = mapa.get(clave);
+      if (!previa || String(fila.updatedAt || '') > String(previa.updatedAt || '')) mapa.set(clave, fila);
+    }
+    return [...mapa.values()].sort((a, b) => String(a.respondent).localeCompare(String(b.respondent), 'es'));
+  }
+
   async function cargarResumen() {
+    if (!modoFamilia) return;
+    if (respuestaLocal) {
+      resumenFilas = combinarResumen([...resumenFilas, respuestaLocal]);
+      renderResumen(resumenFilas);
+    }
     try {
       const data = await api('/api/resumen');
-      records = (Array.isArray(data.filas) ? data.filas : []).map((row, index) => ({
-        id: `fila-${index}`,
-        name: '',
-        people: Number(row.people) || 0,
-        from: row.from,
-        to: row.to,
-        periods: Array.isArray(row.periods) ? row.periods : [],
-        activities: Array.isArray(row.activities) ? row.activities : [],
-        customActivity: ''
-      }));
-      render();
-    } catch (error) {
-      if (error.status === 503) {
-        notice.className = 'notice error';
-        noticeText.innerHTML = '<strong>Base de datos pendiente:</strong> falta conectar el almacenamiento (KV) en Cloudflare. Mientras tanto, las respuestas no se pueden guardar.';
-      }
-      render();
-    }
-  }
-
-  function render() {
-    const totalPeople = records.reduce((sum, row) => sum + row.people, 0);
-    document.getElementById('family-count').textContent = String(records.length);
-    document.getElementById('people-count').textContent = String(totalPeople);
-    const result = FamilyLogic.recommendBestDates(records, EVENT_START, EVENT_END);
-    renderRecommendation(result, totalPeople);
-    renderAvailability(result, totalPeople);
-    renderRankList(document.getElementById('period-results'), FamilyLogic.countSelections(records, 'periods'), PERIOD_LABELS, 'Aún no hay votos.');
-    renderRankList(document.getElementById('activity-results'), FamilyLogic.countSelections(records, 'activities'), ACTIVITY_LABELS, 'Aún no hay ideas votadas.');
-  }
-
-  function renderRecommendation(result, totalPeople) {
-    const host = document.getElementById('date-recommendations');
-    host.replaceChildren();
-    if (!records.length || !result.bestDay) {
-      host.append(create('div', 'empty-state', 'Aún no hay respuestas con disponibilidad. Guarda una para empezar a comparar fechas.'));
-      return;
-    }
-
-    const dayCard = create('article', 'recommendation');
-    dayCard.append(create('p', 'recommendation-label', 'Mejor opción · 1 día'));
-    dayCard.append(create('p', 'recommendation-date', formatDate(result.bestDay.date)));
-    const familiasDia = result.bestDay.families;
-    dayCard.append(create('p', 'recommendation-meta', `${result.bestDay.people} de ${totalPeople} personas · ${familiasDia} ${familiasDia === 1 ? 'familia disponible' : 'familias disponibles'}`));
-    host.append(dayCard);
-
-    const twoDayCard = create('article', 'recommendation secondary');
-    twoDayCard.append(create('p', 'recommendation-label', 'Ventana más fuerte · 2 días'));
-    if (result.bestTwoDays) {
-      twoDayCard.append(create('p', 'recommendation-date', dateSpan(result.bestTwoDays.from, result.bestTwoDays.to)));
-      const first = result.daily.find(day => day.date === result.bestTwoDays.from);
-      const second = result.daily.find(day => day.date === result.bestTwoDays.to);
-      twoDayCard.append(create('p', 'recommendation-meta', `${first.people} personas el primer día y ${second.people} el segundo · suma de disponibilidad en ambos días`));
-    } else {
-      twoDayCard.append(create('p', 'recommendation-date', 'Faltan respuestas'));
-      twoDayCard.append(create('p', 'recommendation-meta', 'Se necesita disponibilidad en dos días consecutivos.'));
-    }
-    host.append(twoDayCard);
-  }
-
-  function renderRankList(host, counts, labels, emptyText, limit = 4) {
-    host.replaceChildren();
-    const items = Object.entries(counts).map(([key, count]) => ({ key, count, label: labels[key] || key }))
-      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'es')).slice(0, limit);
-    if (!items.length) {
-      host.append(create('p', 'helper', emptyText));
-      return;
-    }
-    const max = items[0].count || 1;
-    for (const item of items) {
-      const row = create('div', 'rank-row');
-      row.setAttribute('aria-label', `${item.label}: ${item.count} ${item.count === 1 ? 'familia' : 'familias'}`);
-      row.append(create('span', 'rank-name', item.label));
-      row.append(create('span', 'rank-count', `${item.count} ${item.count === 1 ? 'familia' : 'familias'}`));
-      const track = create('div', 'bar-track');
-      track.setAttribute('aria-hidden', 'true');
-      const fill = create('div', 'bar-fill');
-      fill.style.width = `${Math.max(8, Math.round(item.count / max * 100))}%`;
-      track.append(fill);
-      row.append(track);
-      host.append(row);
-    }
-  }
-
-  function renderAvailability(result, totalPeople) {
-    const host = document.getElementById('availability-results');
-    host.replaceChildren();
-    const topDays = result.daily.filter(day => day.people > 0)
-      .sort((a, b) => b.people - a.people || b.families - a.families || a.date.localeCompare(b.date)).slice(0, 4);
-    if (!topDays.length) {
-      host.append(create('p', 'helper', 'Se mostrará al recibir respuestas.'));
-      return;
-    }
-    const max = topDays[0].people || 1;
-    for (const day of topDays) {
-      const row = create('div', 'rank-row');
-      row.append(create('span', 'rank-name', formatDate(day.date)));
-      row.append(create('span', 'rank-count', `${day.people}/${totalPeople} personas`));
-      const track = create('div', 'bar-track');
-      track.setAttribute('aria-hidden', 'true');
-      const fill = create('div', 'bar-fill');
-      fill.style.width = `${Math.max(8, Math.round(day.people / max * 100))}%`;
-      track.append(fill);
-      row.append(track);
-      host.append(row);
+      resumenFilas = combinarResumen(Array.isArray(data.filas) ? data.filas : []);
+      renderResumen(resumenFilas);
+    } catch {
+      // El resumen es informativo; si falla, la encuesta sigue funcionando.
     }
   }
 
   // ---------------------------------------------------------
   //  Panel familiar
   // ---------------------------------------------------------
-  function aplicarfamilia(datos) {
-    family = datos;
-    bannerName.textContent = datos.name || 'Mi familia';
-    const respondida = Number(datos.people) >= 1 && FamilyLogic.validISODate(datos.from) && FamilyLogic.validISODate(datos.to);
-    badge.textContent = respondida ? 'Respondida' : 'Pendiente';
-    badge.classList.toggle('pending', !respondida);
-    bannerHelp.textContent = respondida
-      ? 'Ya tenemos tu respuesta. Puedes actualizarla cuando quieras; este enlace es personal.'
-      : 'Completa el formulario de abajo. Este enlace es personal y no necesitas contraseña.';
-
-    nameInput.value = datos.name || '';
-    document.getElementById('people').value = Number(datos.people) >= 1 ? datos.people : 1;
-    fromInput.value = datos.from || '';
-    toInput.value = datos.to || '';
-    toInput.min = fromInput.value || EVENT_START;
-    document.getElementById('custom-idea').value = datos.customActivity || '';
-    setChoices('periods', datos.periods);
-    setChoices('activities', datos.activities);
-
-    formTitle.textContent = respondida ? `Actualiza tu respuesta, ${datos.name}` : `Hola, ${datos.name || 'familia'}`;
-    formHelp.textContent = respondida
-      ? 'Estos son los datos que ya guardaste. Cambia lo que necesites y pulsa Guardar.'
-      : 'Solo te tomará un minuto. Si algo cambia, puedes volver a este enlace y actualizarlo.';
+  function mostrarAgradecimiento(datos) {
+    thanksName.textContent = datos.respondent || '';
+    form.hidden = true;
+    thankYou.hidden = false;
+    formTitle.textContent = '¡Gracias por responder!';
+    formHelp.textContent = 'Tu respuesta quedó guardada.';
     setBusy(false);
-    if (respondida) {
-      showFeedback('Ya registramos tu respuesta. Puedes actualizarla cuando quieras.');
-    } else {
-      showFeedback('Tu enlace funciona. Completa el formulario para responder.');
-    }
+    showFeedback('');
+  }
+
+  function mostrarFormulario(editando, nombreFamilia) {
+    form.hidden = false;
+    thankYou.hidden = true;
+    formTitle.textContent = editando ? 'Actualiza tu respuesta' : `Hola, ${nombreFamilia || 'familia'}`;
+    formHelp.textContent = editando
+      ? 'Cambia lo que necesites y pulsa Guardar.'
+      : 'Escribe tu nombre y apellido y cuántas personas posiblemente pueden asistir.';
+    setBusy(false);
+    if (!editando) showFeedback('Tu enlace funciona. Completa los datos para responder.');
+  }
+
+  function aplicarfamilia(datos) {
+    bannerName.textContent = datos.name || 'Mi familia';
+    const lista = respondida(datos);
+    badge.textContent = lista ? 'Respondida' : 'Pendiente';
+    badge.classList.toggle('pending', !lista);
+    bannerHelp.textContent = lista
+      ? 'Ya tenemos tu respuesta. Puedes actualizarla cuando quieras; este enlace es personal.'
+      : 'Completa tus datos abajo. Este enlace es personal y no necesitas contraseña.';
+
+    respondentInput.value = datos.respondent || '';
+    peopleInput.value = Number(datos.people) >= 1 ? String(datos.people) : '';
+
+    if (lista) mostrarAgradecimiento(datos);
+    else mostrarFormulario(false, datos.name);
   }
 
   async function cargarFamilia() {
     try {
       const datos = await api(`/api/familia/${token}`);
       aplicarfamilia(datos);
+      if (respondida(datos)) {
+        respuestaLocal = {
+          respondent: datos.respondent,
+          people: Number(datos.people),
+          updatedAt: datos.updatedAt
+        };
+      }
     } catch (error) {
       setBusy(true, 'No disponible');
       bannerHelp.textContent = 'No pudimos cargar tu panel.';
@@ -327,26 +255,8 @@
   }
 
   // ---------------------------------------------------------
-  //  Formularios
+  //  Formulario
   // ---------------------------------------------------------
-  function formData() {
-    return {
-      name: nameInput.value.trim(),
-      people: Number(document.getElementById('people').value),
-      from: fromInput.value,
-      to: toInput.value,
-      periods: chosen('periods'),
-      activities: chosen('activities'),
-      customActivity: document.getElementById('custom-idea').value.trim()
-    };
-  }
-
-  function focusForError(errors) {
-    const focusTargets = { name: 'family-name', people: 'people', dates: 'available-from', periods: 'period-choices', activities: 'activity-choices' };
-    const target = document.getElementById(focusTargets[errors[0]]);
-    if (target) target.focus();
-  }
-
   form.addEventListener('submit', async event => {
     event.preventDefault();
     clearErrors();
@@ -356,20 +266,18 @@
       return;
     }
 
-    const data = formData();
+    const data = {
+      respondent: respondentInput.value.trim(),
+      people: Number(peopleInput.value)
+    };
     const errors = FamilyLogic.validateResponse(data);
-    if (data.periods.length > 3) errors.push('periods');
-    if (data.activities.length > 3) errors.push('activities');
     if (errors.length) {
       const messages = {
-        name: 'Escribe el nombre de la persona o familia.',
-        people: 'Indica entre 1 y 15 personas.',
-        dates: 'Revisa el tramo: las fechas deben ser válidas, estar dentro del periodo y la fecha final no puede ser anterior.',
-        periods: data.periods.length > 3 ? 'Elige como máximo 3 periodos.' : 'Marca al menos un periodo preferido.',
-        activities: data.activities.length > 3 ? 'Elige como máximo 3 ideas.' : 'Marca al menos una idea o escribe una propuesta propia.'
+        respondent: 'Escribe tu nombre y apellido.',
+        people: 'Indica una cantidad entre 1 y 30 personas.'
       };
-      showFormError(messages[errors[0]] || 'Revisa los campos marcados.');
-      focusForError(errors);
+      showFormError(messages[errors[0]] || 'Revisa los datos.');
+      (errors[0] === 'respondent' ? respondentInput : peopleInput).focus();
       return;
     }
 
@@ -381,7 +289,11 @@
         body: JSON.stringify(data)
       });
       aplicarfamilia(guardada);
-      showFeedback('¡Listo! Tu respuesta quedó guardada. Puede tardar hasta un minuto en reflejarse en el resumen general.');
+      respuestaLocal = {
+        respondent: guardada.respondent,
+        people: Number(guardada.people),
+        updatedAt: guardada.updatedAt
+      };
       await cargarResumen();
     } catch (error) {
       const campos = error.body && error.body.campos;
@@ -394,25 +306,11 @@
     }
   });
 
-  fromInput.addEventListener('change', () => {
-    toInput.min = fromInput.value || EVENT_START;
-    if (toInput.value && fromInput.value && toInput.value < fromInput.value) toInput.value = '';
+  editResponse.addEventListener('click', () => {
+    mostrarFormulario(true, bannerName.textContent);
+    clearErrors();
+    respondentInput.focus();
   });
-
-  for (const groupName of ['periods', 'activities']) {
-    document.querySelectorAll(`input[name="${groupName}"]`).forEach(input => {
-      input.addEventListener('change', () => {
-        const checked = document.querySelectorAll(`input[name="${groupName}"]:checked`);
-        if (checked.length > 3) {
-          input.checked = false;
-          showFeedback(groupName === 'periods' ? 'Puedes marcar hasta 3 periodos.' : 'Puedes marcar hasta 3 ideas.', 'error');
-        } else {
-          formError.textContent = '';
-          showFeedback('');
-        }
-      });
-    });
-  }
 
   linkForm.addEventListener('submit', event => {
     event.preventDefault();
@@ -430,6 +328,7 @@
   //  Arranque
   // ---------------------------------------------------------
   aplicarModo();
-  cargarResumen();
-  if (modoFamilia) cargarFamilia();
+  if (modoFamilia) {
+    cargarFamilia().then(cargarResumen);
+  }
 })();

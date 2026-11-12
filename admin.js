@@ -137,7 +137,7 @@
   //  Datos y render
   // ---------------------------------------------------------
   function respondio(familia) {
-    return Number(familia.people) >= 1 && Boolean(familia.from) && Boolean(familia.to);
+    return Boolean(familia && String(familia.respondent || '').trim()) && Number(familia.people) >= 1;
   }
 
   function fecha(iso) {
@@ -145,12 +145,6 @@
     const d = new Date(iso);
     if (!Number.isFinite(d.getTime())) return '—';
     return new Intl.DateTimeFormat('es-CO', { dateStyle: 'medium', timeStyle: 'short' }).format(d);
-  }
-
-  function fechaCorta(iso) {
-    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return '—';
-    return new Intl.DateTimeFormat('es-CO', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
-      .format(new Date(`${iso}T12:00:00Z`));
   }
 
   function enlaceDe(familia) {
@@ -172,7 +166,7 @@
   }
 
   function mensajeWhatsApp(familia) {
-    return `Hola 👋 Te comparto tu enlace personal para el Encuentro Barrera (cumpleaños de los abuelos).\n\n${enlaceDe(familia)}\n\nEntra, completa tu disponibilidad y guarda. No necesitas contraseña ni crear cuenta.`;
+    return `Hola 👋 Te comparto tu enlace personal para el Encuentro Barrera (cumpleaños de los abuelos).\n\n${enlaceDe(familia)}\n\nEntra, escribe tu nombre y apellido y cuántas personas posiblemente pueden asistir. No necesitas contraseña ni crear cuenta.`;
   }
 
   function abrirWhatsApp(familia) {
@@ -212,10 +206,8 @@
 
     const meta = elemento('dl', 'family-meta');
     const datos = [
+      ['Nombre y apellido', respondida ? familia.respondent : 'Sin responder'],
       ['Personas', respondida ? String(familia.people) : '—'],
-      ['Disponibilidad', respondida ? `${fechaCorta(familia.from)} – ${fechaCorta(familia.to)}` : 'Sin responder'],
-      ['Periodos', String((familia.periods || []).length)],
-      ['Ideas', String((familia.activities || []).length)],
       ['Actualizado', fecha(familia.updatedAt)]
     ];
     for (const [clave, valor] of datos) {
@@ -270,7 +262,11 @@
     const mapa = new Map(servidor.map(familia => [familia.token, familia]));
     const limite = Date.now() - 5 * 60 * 1000;
     for (const familia of locales) {
-      if (mapa.has(familia.token)) continue;
+      const enServidor = mapa.get(familia.token);
+      if (enServidor) {
+        if (String(familia.updatedAt || '') > String(enServidor.updatedAt || '')) mapa.set(familia.token, familia);
+        continue;
+      }
       const creada = Date.parse(familia.createdAt || familia.updatedAt || '');
       if (Number.isFinite(creada) && creada > limite) mapa.set(familia.token, familia);
     }
@@ -347,7 +343,7 @@
 
   document.getElementById('wa-created').addEventListener('click', () => {
     const nombre = createdName.textContent || 'Familia';
-    const mensaje = `Hola 👋 Te comparto el enlace personal de ${nombre} para el Encuentro Barrera.\n\n${createdLink.value}\n\nEntra, completa tu disponibilidad y guarda. No necesitas contraseña ni crear cuenta.`;
+    const mensaje = `Hola 👋 Te comparto el enlace personal de ${nombre} para el Encuentro Barrera.\n\n${createdLink.value}\n\nEntra, escribe tu nombre y apellido y cuántas personas posiblemente pueden asistir. No necesitas contraseña ni crear cuenta.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank', 'noopener');
   });
 
@@ -399,7 +395,7 @@
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = 'encuentro-familiar.csv';
+      link.download = 'encuentro-barrera.csv';
       document.body.append(link);
       link.click();
       link.remove();

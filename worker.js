@@ -7,15 +7,6 @@
 //  Contraseña de admin: variable/secreto "ADMIN_CLAVE"
 // ============================================================
 
-const EVENT_START = '2026-12-01';
-const EVENT_END = '2027-02-15';
-const PERIODOS = new Set([
-  'dec-01-07', 'dec-08-15', 'dec-16-23', 'dec-24-25', 'dec-26-30',
-  'dec-31-jan-01', 'jan-02-11', 'jan-12-15', 'jan-16-25', 'jan-26-feb-15'
-]);
-const ACTIVIDADES = new Set([
-  'lunch', 'picnic', 'cake', 'music', 'games', 'memories', 'outing', 'surprise'
-]);
 const PREFIJO_FAMILIA = 'familia:';
 const PREFIJO_SESION = 'sesion:';
 const DURACION_SESION = 12 * 60 * 60; // 12 horas
@@ -35,38 +26,20 @@ function texto(valor, max) {
   return String(valor == null ? '' : valor).trim().slice(0, max);
 }
 
-function isoValida(valor) {
-  if (typeof valor !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(valor)) return false;
-  const fecha = new Date(valor + 'T00:00:00Z');
-  return Number.isFinite(fecha.getTime()) && fecha.toISOString().slice(0, 10) === valor;
-}
-
 function normalizar(body) {
   const datos = {
-    name: texto(body && body.name, 70),
-    people: Number(body && body.people),
-    from: texto(body && body.from, 10),
-    to: texto(body && body.to, 10),
-    periods: Array.isArray(body && body.periods)
-      ? [...new Set(body.periods.filter(p => PERIODOS.has(p)))] : [],
-    activities: Array.isArray(body && body.activities)
-      ? [...new Set(body.activities.filter(a => ACTIVIDADES.has(a)))] : [],
-    customActivity: texto(body && body.customActivity, 240)
+    respondent: texto(body && body.respondent, 70),
+    people: Number(body && body.people)
   };
   const errores = [];
-  if (!datos.name) errores.push('name');
-  if (!Number.isInteger(datos.people) || datos.people < 1 || datos.people > 15) errores.push('people');
-  if (!isoValida(datos.from) || !isoValida(datos.to) || datos.from > datos.to ||
-      datos.from < EVENT_START || datos.to > EVENT_END) errores.push('dates');
-  if (datos.periods.length < 1 || datos.periods.length > 3) errores.push('periods');
-  if (datos.activities.length > 3) errores.push('activities');
-  if (!datos.activities.length && !datos.customActivity) errores.push('activities');
+  if (!datos.respondent) errores.push('respondent');
+  if (!Number.isInteger(datos.people) || datos.people < 1 || datos.people > 30) errores.push('people');
   return { datos, errores };
 }
 
 function respondio(familia) {
-  return Boolean(familia && Number(familia.people) >= 1 &&
-    isoValida(familia.from) && isoValida(familia.to));
+  return Boolean(familia && typeof familia.respondent === 'string' &&
+    familia.respondent.trim() && Number(familia.people) >= 1);
 }
 
 function tokenValido(token) {
@@ -97,11 +70,9 @@ async function resumen(env) {
     respondidas: conRespuesta.length,
     personas: conRespuesta.reduce((suma, f) => suma + Number(f.people), 0),
     filas: conRespuesta.map(f => ({
+      respondent: f.respondent,
       people: Number(f.people),
-      from: f.from,
-      to: f.to,
-      periods: Array.isArray(f.periods) ? f.periods : [],
-      activities: Array.isArray(f.activities) ? f.activities : []
+      updatedAt: f.updatedAt
     }))
   };
 }
@@ -116,6 +87,7 @@ async function guardarFamilia(env, token, datos) {
   const previa = (await obtenerFamilia(env, token)) || {};
   const registro = {
     token,
+    name: previa.name || '',
     ...datos,
     createdAt: previa.createdAt || ahora,
     updatedAt: ahora
@@ -139,23 +111,18 @@ function csvCampo(valor) {
 async function exportarCsv(env) {
   const familias = (await listarFamilias(env))
     .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
-  const cabecera = ['Familia', 'Personas', 'Libre desde', 'Libre hasta',
-    'Periodos', 'Ideas', 'Otra idea', 'Actualizado'];
+  const cabecera = ['Familia', 'Nombre y apellido', 'Personas', 'Actualizado'];
   const filas = familias.map(f => [
     f.name,
+    respondio(f) ? f.respondent : '',
     respondio(f) ? f.people : '',
-    respondio(f) ? f.from : '',
-    respondio(f) ? f.to : '',
-    (f.periods || []).join(' | '),
-    (f.activities || []).join(' | '),
-    f.customActivity || '',
     f.updatedAt || ''
   ]);
   const lineas = [cabecera, ...filas].map(fila => fila.map(csvCampo).join(',')).join('\r\n');
   return new Response('\uFEFF' + lineas, {
     headers: {
       'content-type': 'text/csv; charset=utf-8',
-      'content-disposition': 'attachment; filename="encuentro-familiar.csv"',
+      'content-disposition': 'attachment; filename="encuentro-barrera.csv"',
       'cache-control': 'no-store'
     }
   });
@@ -237,12 +204,8 @@ async function manejarApi(request, env, url) {
       const registro = {
         token,
         name: nombre,
+        respondent: '',
         people: 0,
-        from: '',
-        to: '',
-        periods: [],
-        activities: [],
-        customActivity: '',
         createdAt: ahora,
         updatedAt: ahora
       };

@@ -1,6 +1,6 @@
 # Encuentro Barrera
 
-Aplicación web para coordinar la celebración de los cumpleaños de los abuelos: cada familia entra con un **enlace único** (sin cuenta ni contraseña), registra su disponibilidad e ideas, y la organización administra todo desde un panel privado.
+Aplicación web para coordinar la celebración de los cumpleaños de los abuelos: cada familia entra con un **enlace único** (sin cuenta ni contraseña), registra su nombre y la cantidad de personas que posiblemente pueden asistir, y la organización administra los resultados desde un panel privado.
 
 - Web pública / resumen: https://family.nnking919.workers.dev
 - Panel de administración: https://family.nnking919.workers.dev/admin
@@ -9,9 +9,9 @@ Aplicación web para coordinar la celebración de los cumpleaños de los abuelos
 
 | Ruta | Para quién | Qué hace |
 |---|---|---|
-| `/` | Todos | Resumen general de la celebración (sin nombres) y acceso pegando el enlace familiar. |
-| `/f/<token>` | Cada familia | Su panel personal: responde y actualiza cuando quiera. Sin login. |
-| `/admin` | Solo el organizador | Crea familias, copia enlaces, ve respuestas, renombra, elimina y exporta CSV. |
+| `/` | Todos | Acceso a la encuesta pegando el enlace familiar. No muestra resultados. |
+| `/f/<token>` | Cada familia | Su encuesta personal: nombre, apellido y cantidad de asistentes. Sin login. |
+| `/admin` | Solo el organizador | Crea familias, copia enlaces, ve los resultados, renombra, elimina y exporta CSV. |
 
 Cada familia recibe un enlace largo e imposible de adivinar. Quien tenga el enlace puede responder; la organización puede eliminar el enlace en cualquier momento.
 
@@ -57,9 +57,9 @@ Archivos que se publican: `index.html`, `app.js`, `family-logic.js`, `admin.html
 ## Funciones
 
 - Enlace único por familia, sin registro ni contraseña.
-- Formulario con nombre, personas, rango de disponibilidad, hasta 3 periodos y hasta 3 ideas.
-- Sugiere el mejor día y la mejor ventana de dos días; desempata con las preferencias.
-- Resumen público sin nombres.
+- Encuesta con nombre y apellido y cantidad de personas que posiblemente pueden asistir.
+- Mensaje de agradecimiento al guardar: “Esperamos que puedas asistir. Pronto Santiago Barrera compartirá los resultados.”
+- La encuesta no muestra resultados; el organizador los revisa y comparte desde su panel.
 - Panel admin: métricas, creación de familias, copia de enlaces, WhatsApp, renombrado, eliminación y CSV.
 - Sin `localStorage`: todo se guarda en KV y se comparte entre dispositivos.
 - El texto del usuario se inserta con `textContent` (sin `innerHTML`) para evitar inyección de HTML.
@@ -69,7 +69,7 @@ Archivos que se publican: `index.html`, `app.js`, `family-logic.js`, `admin.html
 
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
-| `GET` | `/api/resumen` | Público | Totales y filas agregadas sin nombres. |
+| `GET` | `/api/resumen` | Público | Totales agregados sin nombres (la web no los muestra). |
 | `GET` | `/api/familia/:token` | Enlace | Datos de esa familia. |
 | `PUT` | `/api/familia/:token` | Enlace | Guarda/actualiza su respuesta. |
 | `POST` | `/api/admin/login` | Público | Devuelve token de sesión (12 h). |
@@ -86,7 +86,6 @@ El token de administración viaja en la cabecera `X-Admin-Token` y se guarda en 
 
 - Cumpleaños del abuelo: **8 de diciembre**.
 - Cumpleaños de la abuela: **22 de enero**.
-- Periodo del formulario: **1 de diciembre de 2026 – 15 de febrero de 2027**.
 
 ## Pruebas
 

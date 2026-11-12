@@ -84,6 +84,15 @@
     .btn-quiet:hover { background: var(--surface-soft); }
     .feedback { min-height: 20px; margin: 10px 0 0; color: var(--green); font-size: 12px; }
     .feedback[data-kind="error"] { color: var(--danger); }
+    .thanks { padding: 34px 27px 37px; text-align: center; }
+    .thanks-mark { width: 52px; height: 52px; margin: 0 auto 16px; display: grid; place-items: center; border-radius: 50%; background: var(--green-pale); color: var(--green); font: 24px var(--serif); }
+    .thanks h2 { margin: 0 0 10px; font: 500 27px/1.15 var(--serif); letter-spacing: -.02em; }
+    .thanks p { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
+    .thanks .btn { margin-top: 14px; }
+    .summary-list { list-style: none; display: grid; gap: 8px; margin: 0; padding: 0; }
+    .summary-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; background: var(--surface-soft); border: 1px solid #e7e5dc; font-size: 13px; }
+    .summary-item small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
+    .summary-item span { color: var(--muted); white-space: nowrap; font-variant-numeric: tabular-nums; }
     .results-body { padding: 22px 25px 25px; }
     .metric-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 19px; }
     .metric { padding: 12px 14px; background: var(--surface-soft); border: 1px solid #e7e5dc; }
@@ -212,8 +221,8 @@
       <section class="intro" aria-labelledby="page-title">
         <div>
           <p class="kicker">Diciembre 2026 — enero 2027 · Celebración de los abuelos</p>
-          <h1 id="page-title">El mejor día para reunirnos.</h1>
-          <p class="intro-copy">Coordinemos fechas, asistentes e ideas en familia. Las respuestas nos ayudarán a elegir una fecha y preparar una celebración que todos puedan disfrutar.</p>
+          <h1 id="page-title">Nos reunimos por los abuelos.</h1>
+          <p class="intro-copy">Cuéntanos quién eres y cuántas personas posiblemente pueden asistir. Con esos datos organizaremos la celebración.</p>
         </div>
         <aside class="birthday-note" aria-label="Fechas de cumpleaños">
           <p>Fechas para celebrar</p>
@@ -253,69 +262,19 @@
         <section class="panel form-panel" aria-labelledby="form-title">
           <div class="panel-head">
             <p class="section-index">01 · Responder</p>
-            <h2 id="form-title">¿Cuándo y cómo puedes celebrar?</h2>
-            <p id="form-help">Una respuesta por familia. Podrás editarla después desde este mismo enlace.</p>
+            <h2 id="form-title">Confirma tu asistencia</h2>
+            <p id="form-help">Escribe tu nombre y apellido y cuántas personas posiblemente pueden asistir.</p>
           </div>
           <form id="family-form" class="form-body" novalidate>
-            <div class="field-grid">
-              <div class="field">
-                <label for="family-name">Nombre o familia <span class="required" aria-hidden="true">*</span></label>
-                <input id="family-name" name="name" type="text" maxlength="70" autocomplete="off" placeholder="Ej. Familia Pérez" required>
-              </div>
-              <div class="field">
-                <label for="people">Personas <span class="required" aria-hidden="true">*</span></label>
-                <input id="people" name="people" type="number" min="1" max="15" step="1" value="1" required>
-              </div>
-            </div>
-
-            <div class="date-grid">
-              <div class="field">
-                <label for="available-from">Libre desde <span class="required" aria-hidden="true">*</span></label>
-                <input id="available-from" name="from" type="date" min="2026-12-01" max="2027-02-15" required>
-              </div>
-              <div class="field">
-                <label for="available-to">Libre hasta, inclusive <span class="required" aria-hidden="true">*</span></label>
-                <input id="available-to" name="to" type="date" min="2026-12-01" max="2027-02-15" required>
-              </div>
-            </div>
-            <p class="helper">Indica el tramo en que tu grupo completo podría asistir. Fechas de referencia: 1 dic. 2026 a 15 feb. 2027.</p>
-
-            <fieldset>
-              <legend>Periodos que prefieren <span class="required" aria-hidden="true">*</span></legend>
-              <p class="helper">Elige hasta 3. Cada familia cuenta como un voto.</p>
-              <div class="choice-grid" id="period-choices" tabindex="-1">
-                <label class="choice"><input type="checkbox" name="periods" value="dec-01-07"><span>1–7 dic. · Antes del cumpleaños del abuelo</span></label>
-                <label class="choice"><input type="checkbox" name="periods" value="dec-08-15"><span>8–15 dic. · Cumpleaños del abuelo</span></label>
-                <label class="choice"><input type="checkbox" name="periods" value="dec-16-23"><span>16–23 dic. · Antes de Navidad</span></label>
-                <label class="choice"><input type="checkbox" name="periods" value="dec-24-25"><span>24–25 dic. · Navidad</span></label>
-                <label class="choice"><input type="checkbox" name="periods" value="dec-26-30"><span>26–30 dic. · Entre fiestas</span></label>
-                <label class="choice"><input type="checkbox" name="periods" value="dec-31-jan-01"><span>31 dic.–1 ene. · Año Nuevo</span></label>
-                <label class="choice"><input type="checkbox" name="periods" value="jan-02-11"><span>2–11 ene. · Inicio de año</span></label>
-                <label class="choice"><input type="checkbox" name="periods" value="jan-12-15"><span>12–15 ene. · Mediados de enero</span></label>
-                <label class="choice"><input type="checkbox" name="periods" value="jan-16-25"><span>16–25 ene. · Cumpleaños de la abuela</span></label>
-                <label class="choice"><input type="checkbox" name="periods" value="jan-26-feb-15"><span>26 ene.–15 feb. · Otra fecha</span></label>
-              </div>
-            </fieldset>
-
-            <fieldset>
-              <legend>Ideas para la celebración <span class="required" aria-hidden="true">*</span></legend>
-              <p class="helper">Elige hasta 3 para que podamos priorizar lo que más gusta.</p>
-              <div class="choice-grid" id="activity-choices" tabindex="-1">
-                <label class="choice"><input type="checkbox" name="activities" value="lunch"><span>Almuerzo o cena familiar</span></label>
-                <label class="choice"><input type="checkbox" name="activities" value="picnic"><span>Parrillada o picnic</span></label>
-                <label class="choice"><input type="checkbox" name="activities" value="cake"><span>Torta, brindis y palabras</span></label>
-                <label class="choice"><input type="checkbox" name="activities" value="music"><span>Música, baile y karaoke</span></label>
-                <label class="choice"><input type="checkbox" name="activities" value="games"><span>Juegos para todas las edades</span></label>
-                <label class="choice"><input type="checkbox" name="activities" value="memories"><span>Fotos e historias familiares</span></label>
-                <label class="choice"><input type="checkbox" name="activities" value="outing"><span>Paseo o actividad fuera de casa</span></label>
-                <label class="choice"><input type="checkbox" name="activities" value="surprise"><span>Un detalle sorpresa para los abuelos</span></label>
-              </div>
-            </fieldset>
-
             <div class="field">
-              <label for="custom-idea">Otra idea o detalle a considerar</label>
-              <textarea id="custom-idea" name="customActivity" maxlength="240" placeholder="Ej. preparar un video con mensajes de la familia"></textarea>
+              <label for="respondent">Nombre y apellido <span class="required" aria-hidden="true">*</span></label>
+              <input id="respondent" name="respondent" type="text" maxlength="70" autocomplete="name" placeholder="Ej. Yerly, Mayo, Berleyna" required>
             </div>
+            <div class="field">
+              <label for="people">¿Cuántas personas posiblemente pueden asistir? <span class="required" aria-hidden="true">*</span></label>
+              <input id="people" name="people" type="number" min="1" max="30" step="1" inputmode="numeric" placeholder="Ej. 4" required>
+            </div>
+            <p class="helper">Escribe tu nombre completo y el número aproximado de personas que podrían asistir.</p>
             <p class="form-error" id="form-error" role="alert" aria-live="polite"></p>
             <div class="form-actions">
               <button class="btn btn-primary" id="submit-button" type="submit">Guardar respuesta</button>
@@ -323,65 +282,41 @@
             </div>
             <p class="feedback" id="form-feedback" role="status" aria-live="polite"></p>
           </form>
+          <div class="thanks" id="thank-you" hidden>
+            <div class="thanks-mark" aria-hidden="true">✓</div>
+            <h2>¡Gracias por tu respuesta!</h2>
+            <p>Gracias, <strong id="thanks-name"></strong>. Esperamos que puedas asistir.</p>
+            <p>Pronto Santiago Barrera compartirá los resultados.</p>
+            <button class="btn btn-quiet" id="edit-response" type="button">Editar mi respuesta</button>
+          </div>
         </section>
 
-        <section class="panel results-panel" aria-labelledby="results-title">
+        <section class="panel results-panel" id="summary-panel" aria-labelledby="summary-title" hidden>
           <div class="panel-head">
-            <p class="section-index">02 · Decidir</p>
-            <h2 id="results-title">Lo que sabemos hasta ahora</h2>
-            <p>Las recomendaciones cambian con cada respuesta.</p>
+            <p class="section-index">02 · Participación</p>
+            <h2 id="summary-title">Lo que sabemos hasta ahora</h2>
+            <p>Familias que ya respondieron.</p>
           </div>
           <div class="results-body">
-            <div class="metric-row" aria-label="Resumen de respuestas">
-              <div class="metric"><span class="metric-label">Familias</span><span class="metric-value" id="family-count">0</span></div>
-              <div class="metric"><span class="metric-label">Personas incluidas</span><span class="metric-value" id="people-count">0</span></div>
+            <div class="metric-row">
+              <div class="metric"><span class="metric-label">Familias</span><span class="metric-value" id="summary-families">0</span></div>
+              <div class="metric"><span class="metric-label">Personas</span><span class="metric-value" id="summary-people">0</span></div>
             </div>
-            <div id="date-recommendations" class="recommendations" aria-live="polite">
-              <div class="empty-state">Cuando haya respuestas, aparecerán aquí el mejor día y la mejor ventana de dos días según la disponibilidad registrada.</div>
-            </div>
-            <section class="result-block" aria-labelledby="period-results-title">
-              <div class="result-title"><h3 id="period-results-title">Periodos preferidos</h3><span>Votos por familia</span></div>
-              <div class="rank-list" id="period-results"><p class="helper">Aún no hay votos.</p></div>
-            </section>
-            <section class="result-block" aria-labelledby="activity-results-title">
-              <div class="result-title"><h3 id="activity-results-title">Ideas favoritas</h3><span>Votos por familia</span></div>
-              <div class="rank-list" id="activity-results"><p class="helper">Aún no hay ideas votadas.</p></div>
-            </section>
-            <section class="result-block" aria-labelledby="availability-title">
-              <div class="result-title"><h3 id="availability-title">Días con más disponibilidad</h3><span id="availability-caption">Personas estimadas</span></div>
-              <div class="rank-list" id="availability-results"><p class="helper">Se mostrará al recibir respuestas.</p></div>
-            </section>
+            <ul class="summary-list" id="summary-list"></ul>
+            <p class="helper" id="summary-empty" hidden>Todavía no hay respuestas.</p>
           </div>
         </section>
       </div>
 
       <section class="agenda" aria-labelledby="agenda-title">
-        <p class="section-index">03 · Propuesta inicial</p>
+        <p class="section-index">02 · Propuesta inicial</p>
         <h2 id="agenda-title">Una celebración sencilla, hecha entre todos</h2>
         <ol class="agenda-list">
           <li>Recibir a la familia y tomar una foto de todos.</li>
           <li>Compartir la comida, la torta y un brindis por los abuelos.</li>
-          <li>Cerrar con la actividad que más votos tenga: juegos, música o recuerdos.</li>
+          <li>Cerrar con un brindis y una foto de toda la familia.</li>
         </ol>
         <p class="agenda-note">Borrador para conversar; no hay lugar, presupuesto ni horario definidos todavía.</p>
-      </section>
-
-      <section class="panel responses" aria-labelledby="responses-title">
-        <div class="responses-head">
-          <div><p class="section-index">04 · Respuestas</p><h2 id="responses-title">Participación familiar</h2><p id="response-count-label">Todavía no hay respuestas guardadas en este navegador.</p></div>
-          <div class="responses-actions">
-            <button class="btn btn-quiet" id="export-button" type="button" disabled>Descargar CSV</button>
-            <button class="btn btn-quiet" id="print-button" type="button">Imprimir resumen</button>
-          </div>
-        </div>
-        <div class="table-wrap">
-          <table>
-            <caption>Disponibilidad e ideas de cada familia</caption>
-            <thead><tr><th scope="col">Familia</th><th scope="col">Personas</th><th scope="col">Disponibilidad</th><th scope="col">Preferencias e ideas</th><th scope="col"><span class="visually-hidden">Acciones</span></th></tr></thead>
-            <tbody id="response-rows"></tbody>
-          </table>
-          <p class="table-empty" id="table-empty">Las respuestas guardadas aparecerán aquí.</p>
-        </div>
       </section>
     </main>
     <footer><span>Familia Barrera · Planificación participativa</span><span id="footer-note">Tus respuestas se guardan de forma privada y solo se comparten contigo y con la organización.</span></footer>
