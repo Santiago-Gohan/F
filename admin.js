@@ -97,7 +97,7 @@
   loginForm.addEventListener('submit', async event => {
     event.preventDefault();
     loginError.textContent = '';
-    const clave = adminKey.value;
+    const clave = adminKey.value.trim();
     if (!clave) {
       loginError.textContent = 'Escribe la contraseña.';
       adminKey.focus();

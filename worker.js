@@ -185,8 +185,8 @@ async function manejarApi(request, env, url) {
   if (path === '/api/admin/login' && metodo === 'POST') {
     let body;
     try { body = await request.json(); } catch { return json({ error: 'JSON inválido' }, 400); }
-    const esperada = String(env.ADMIN_CLAVE || CLAVE_DEFECTO);
-    if (String(body.clave || '') !== esperada) {
+    const esperada = String(env.ADMIN_CLAVE || CLAVE_DEFECTO).trim();
+    if (String(body.clave || '').trim() !== esperada) {
       return json({ error: 'Contraseña incorrecta' }, 401);
     }
     const token = crypto.randomUUID();
