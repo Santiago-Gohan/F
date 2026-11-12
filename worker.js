@@ -126,7 +126,7 @@ function csvCampo(valor) {
 async function exportarCsv(env) {
   const familias = (await listarFamilias(env))
     .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
-  const cabecera = ['Familia', 'Nombre y apellido', 'Personas', 'Disponible desde', 'Disponible hasta', 'Propuesta', 'Actualizado'];
+  const cabecera = ['Hogar', 'Nombre y apellido', 'Personas', 'Disponible desde', 'Disponible hasta', 'Propuesta', 'Actualizado'];
   const filas = familias.map(f => [
     f.name,
     respondio(f) ? f.respondent : '',
@@ -216,7 +216,7 @@ async function manejarApi(request, env, url) {
       let body;
       try { body = await request.json(); } catch { return json({ error: 'JSON inválido' }, 400); }
       const nombre = texto(body.name, 70);
-      if (!nombre) return json({ error: 'Escribe el nombre de la familia' }, 422);
+      if (!nombre) return json({ error: 'Escribe el nombre del hogar' }, 422);
       const token = crypto.randomUUID().replace(/-/g, '');
       const ahora = new Date().toISOString();
       const registro = {
@@ -238,7 +238,7 @@ async function manejarApi(request, env, url) {
     if (mAdmin) {
       const token = mAdmin[1];
       const familia = await obtenerFamilia(env, token);
-      if (!familia) return json({ error: 'Familia no encontrada' }, 404);
+      if (!familia) return json({ error: 'Hogar no encontrado' }, 404);
 
       if (metodo === 'DELETE') {
         await env.FAMILIA.delete(PREFIJO_FAMILIA + token);

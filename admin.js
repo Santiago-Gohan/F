@@ -221,7 +221,7 @@
 
     const meta = elemento('dl', 'family-meta');
     const datos = [
-      ['Nombre y apellido', respondida ? familia.respondent : 'Sin responder'],
+      ['Quién responde', respondida ? familia.respondent : 'Sin responder'],
       ['Personas', respondida ? String(familia.people) : '-'],
       ['Disponible', respondida ? rangoFechas(familia.availableFrom, familia.availableTo) : '-'],
       ['Actualizado', fecha(familia.updatedAt)]
@@ -271,8 +271,8 @@
     document.getElementById('stat-pending').textContent = String(familias.length - respondidas.length);
     document.getElementById('stat-people').textContent = String(personas);
     listSummary.textContent = familias.length
-      ? `${familias.length} ${familias.length === 1 ? 'familia creada' : 'familias creadas'} · ${respondidas.length} ${respondidas.length === 1 ? 'respondió' : 'respondieron'}.`
-      : 'Todavía no hay familias.';
+      ? `${familias.length} ${familias.length === 1 ? 'hogar creado' : 'hogares creados'} · ${respondidas.length} ${respondidas.length === 1 ? 'respondió' : 'respondieron'}.`
+      : 'Todavía no hay hogares.';
     if (!familias.length) return;
 
     const fragment = document.createDocumentFragment();
@@ -296,7 +296,7 @@
   }
 
   async function cargarFamilias() {
-    listStatus.textContent = 'Cargando familias…';
+    listStatus.textContent = 'Cargando hogares…';
     try {
       const data = await api('/api/admin/familias');
       const servidor = Array.isArray(data.familias) ? data.familias : [];
@@ -318,7 +318,7 @@
     for (const id of ['stat-total', 'stat-answered', 'stat-pending', 'stat-people']) {
       document.getElementById(id).textContent = '0';
     }
-    listSummary.textContent = 'Todavía no hay familias.';
+    listSummary.textContent = 'Todavía no hay hogares.';
     listStatus.textContent = '';
     createError.textContent = '';
   }
@@ -331,7 +331,7 @@
     createError.textContent = '';
     const nombre = newFamilyName.value.trim();
     if (!nombre) {
-      createError.textContent = 'Escribe el nombre de la familia.';
+      createError.textContent = 'Escribe el nombre del hogar.';
       newFamilyName.focus();
       return;
     }
@@ -364,13 +364,13 @@
   });
 
   document.getElementById('wa-created').addEventListener('click', () => {
-    const nombre = createdName.textContent || 'Familia';
+    const nombre = createdName.textContent || 'Hogar';
     const mensaje = `Hola 👋 Te comparto el enlace personal de ${nombre} para el Encuentro Barrera.\n\n${createdLink.value}\n\nEntra, escribe tu nombre y apellido, cuántas personas posiblemente pueden asistir y en qué fechas están disponibles. No necesitas contraseña ni crear cuenta.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank', 'noopener');
   });
 
   async function renombrar(familia) {
-    const nuevo = window.prompt('Nuevo nombre de la familia:', familia.name);
+    const nuevo = window.prompt('Nuevo nombre del hogar:', familia.name);
     if (nuevo === null) return;
     const nombre = nuevo.trim();
     if (!nombre || nombre === familia.name) return;
@@ -392,7 +392,7 @@
     try {
       await api(`/api/admin/familias/${familia.token}`, { method: 'DELETE' });
       renderFamilias(familiasState.filter(item => item.token !== familia.token));
-      listStatus.textContent = `${familia.name} fue eliminada.`;
+      listStatus.textContent = `${familia.name} fue eliminado.`;
     } catch (error) {
       listStatus.textContent = mensajeDeError(error);
     }

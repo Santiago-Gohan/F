@@ -111,7 +111,7 @@
     banner.hidden = !modoFamilia;
 
     if (modoFamilia) {
-      document.getElementById('status-text').textContent = 'Panel familiar';
+      document.getElementById('status-text').textContent = 'Panel de tu hogar';
       notice.className = 'notice ok';
       noticeText.innerHTML = '<strong>Tu enlace es privado:</strong> con él puedes guardar y actualizar tu respuesta.';
       document.getElementById('footer-note').textContent = 'Tus respuestas se guardan de forma privada y solo se comparten contigo y con la organización.';
@@ -120,8 +120,8 @@
       summaryPanel.hidden = true;
       document.getElementById('status-text').textContent = 'Familia Barrera';
       notice.className = 'notice';
-      noticeText.innerHTML = '<strong>Acceso con enlace:</strong> cada familia entra a su propio panel con el link que le compartieron.';
-      document.getElementById('footer-note').textContent = 'Cada familia administra su propia respuesta; la organización puede ver y exportar el resumen.';
+      noticeText.innerHTML = '<strong>Acceso con enlace:</strong> cada hogar entra a su propio panel con el link que le compartieron.';
+      document.getElementById('footer-note').textContent = 'Cada hogar administra su propia respuesta; la organización puede ver y exportar el resumen.';
     }
   }
 
@@ -228,10 +228,10 @@
     showFeedback('');
   }
 
-  function mostrarFormulario(editando, nombreFamilia) {
+  function mostrarFormulario(editando, nombreHogar) {
     form.hidden = false;
     thankYou.hidden = true;
-    formTitle.textContent = editando ? 'Actualiza tu respuesta' : `Hola, ${nombreFamilia || 'familia'}`;
+    formTitle.textContent = editando ? 'Actualiza tu respuesta' : `Hola, ${nombreHogar || 'hogar'}`;
     formHelp.textContent = editando
       ? 'Cambia lo que necesites y pulsa Guardar.'
       : 'Escribe tu nombre y apellido, cuántas personas posiblemente pueden asistir y en qué fechas.';
@@ -240,7 +240,7 @@
   }
 
   function aplicarfamilia(datos) {
-    bannerName.textContent = datos.name || 'Mi familia';
+    bannerName.textContent = datos.name || 'Mi hogar';
     const lista = respondida(datos);
     badge.textContent = lista ? 'Respondida' : 'Pendiente';
     badge.classList.toggle('pending', !lista);

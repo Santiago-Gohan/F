@@ -1,6 +1,6 @@
 # Encuentro Barrera
 
-Aplicación web para coordinar la celebración de los cumpleaños de los abuelos: cada familia entra con un **enlace único** (sin cuenta ni contraseña), registra su nombre, la cantidad de personas que posiblemente pueden asistir, sus fechas de disponibilidad y, si quiere, una propuesta para el evento, y la organización administra los resultados desde un panel privado.
+Aplicación web para coordinar la celebración de los cumpleaños de los abuelos: es **una sola familia** y cada respuesta representa a un **hogar**. Los hijos y nietos responden con un **enlace único por hogar** (sin cuenta ni contraseña), registran quién responde, la cantidad de personas que posiblemente pueden asistir, sus fechas de disponibilidad y, si quieren, una propuesta para el evento. La organización administra los resultados desde un panel privado.
 
 - Web pública / resumen: https://family.nnking919.workers.dev
 - Panel de administración: https://family.nnking919.workers.dev/admin
@@ -9,11 +9,11 @@ Aplicación web para coordinar la celebración de los cumpleaños de los abuelos
 
 | Ruta | Para quién | Qué hace |
 |---|---|---|
-| `/` | Todos | Acceso a la encuesta pegando el enlace familiar. No muestra resultados. |
-| `/f/<token>` | Cada familia | Su encuesta personal: nombre, apellido, cantidad de asistentes, fechas de disponibilidad y una propuesta opcional. Sin login. |
-| `/admin` | Solo el organizador | Crea familias, copia enlaces, ve los resultados, renombra, elimina y exporta CSV. |
+| `/` | Todos | Acceso a la encuesta pegando el enlace del hogar. No muestra resultados. |
+| `/f/<token>` | Cada hogar | Su encuesta personal: quién responde, cantidad de asistentes, fechas de disponibilidad y una propuesta opcional. Sin login. |
+| `/admin` | Solo el organizador | Crea hogares, copia enlaces, ve los resultados, renombra, elimina y exporta CSV. |
 
-Cada familia recibe un enlace largo e imposible de adivinar. Quien tenga el enlace puede responder; la organización puede eliminar el enlace en cualquier momento.
+Cada hogar recibe un enlace largo e imposible de adivinar. Quien tenga el enlace puede responder; la organización puede eliminar el enlace en cualquier momento.
 
 ## Base de datos (Cloudflare KV)
 
@@ -56,11 +56,11 @@ Archivos que se publican: `index.html`, `app.js`, `family-logic.js`, `admin.html
 
 ## Funciones
 
-- Enlace único por familia, sin registro ni contraseña.
-- Encuesta con nombre y apellido, cantidad de personas que posiblemente pueden asistir, tramo de fechas disponibles y una propuesta opcional para el evento.
+- Enlace único por hogar, sin registro ni contraseña.
+- Encuesta con nombre y apellido de quien responde, cantidad de personas que posiblemente pueden asistir, tramo de fechas disponibles y una propuesta opcional para el evento.
 - Mensaje de agradecimiento al guardar: “Esperamos que puedas asistir. Pronto Santiago Barrera compartirá los resultados.”
 - La encuesta no muestra resultados; el organizador los revisa y comparte desde su panel.
-- Panel admin: métricas, creación de familias, copia de enlaces, WhatsApp, renombrado, eliminación y CSV.
+- Panel admin: métricas, creación de hogares, copia de enlaces, WhatsApp, renombrado, eliminación y CSV.
 - Sin `localStorage`: todo se guarda en KV y se comparte entre dispositivos.
 - El texto del usuario se inserta con `textContent` (sin `innerHTML`) para evitar inyección de HTML.
 - Diseño adaptable a móviles e impresión.
@@ -70,14 +70,14 @@ Archivos que se publican: `index.html`, `app.js`, `family-logic.js`, `admin.html
 | Método | Ruta | Acceso | Descripción |
 |---|---|---|---|
 | `GET` | `/api/resumen` | Público | Totales agregados sin nombres (la web no los muestra). |
-| `GET` | `/api/familia/:token` | Enlace | Datos de esa familia. |
+| `GET` | `/api/familia/:token` | Enlace | Datos de ese hogar. |
 | `PUT` | `/api/familia/:token` | Enlace | Guarda/actualiza su respuesta. |
 | `POST` | `/api/admin/login` | Público | Devuelve token de sesión (12 h). |
 | `POST` | `/api/admin/logout` | Admin | Cierra sesión. |
 | `GET` | `/api/admin/familias` | Admin | Lista completa con tokens. |
-| `POST` | `/api/admin/familias` | Admin | Crea una familia y su enlace. |
+| `POST` | `/api/admin/familias` | Admin | Crea un hogar y su enlace. |
 | `PATCH` | `/api/admin/familias/:token` | Admin | Renombra. |
-| `DELETE` | `/api/admin/familias/:token` | Admin | Elimina familia y enlace. |
+| `DELETE` | `/api/admin/familias/:token` | Admin | Elimina el hogar y su enlace. |
 | `GET` | `/api/admin/export` | Admin | Descarga CSV. |
 
 El token de administración viaja en la cabecera `X-Admin-Token` y se guarda en `sessionStorage`.

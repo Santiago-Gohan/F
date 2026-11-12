@@ -133,7 +133,7 @@
       <div class="login-card">
         <p class="kicker">Administración</p>
         <h1>Entra a tu panel.</h1>
-        <p>Solo tú puedes crear familias, copiar sus enlaces y ver todas las respuestas.</p>
+        <p>Solo tú puedes crear hogares, copiar sus enlaces y ver todas las respuestas.</p>
         <form id="login-form" novalidate>
           <div class="field">
             <label for="admin-key">Contraseña de administración</label>
@@ -150,7 +150,7 @@
         <div>
           <p class="kicker">Administración</p>
           <h1>Todo el encuentro, en un solo lugar.</h1>
-          <p>Crea una familia y comparte su enlace personal. Ellos responden sin crear cuenta.</p>
+          <p>Crea un hogar y comparte su enlace personal. Quien responde no necesita crear cuenta.</p>
         </div>
         <div class="admin-actions">
           <button class="btn btn-quiet" id="refresh-button" type="button">Actualizar</button>
@@ -165,7 +165,7 @@
       </div>
 
       <div class="stats">
-        <div class="stat"><span class="stat-label">Familias</span><span class="stat-value" id="stat-total">0</span></div>
+        <div class="stat"><span class="stat-label">Hogares</span><span class="stat-value" id="stat-total">0</span></div>
         <div class="stat"><span class="stat-label">Respondieron</span><span class="stat-value" id="stat-answered">0</span></div>
         <div class="stat"><span class="stat-label">Pendientes</span><span class="stat-value" id="stat-pending">0</span></div>
         <div class="stat"><span class="stat-label">Personas</span><span class="stat-value" id="stat-people">0</span></div>
@@ -174,13 +174,13 @@
       <div class="grid-2">
         <section class="card">
           <div class="card-head">
-            <h2>Nueva familia</h2>
-            <p>Escribe el nombre y te damos su enlace único.</p>
+            <h2>Nuevo hogar</h2>
+            <p>Escribe el nombre del hogar y te damos su enlace único.</p>
           </div>
           <div class="card-body">
             <form class="inline-form" id="create-form" novalidate>
-              <label class="visually-hidden" for="new-family-name" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Nombre de la familia</label>
-              <input id="new-family-name" type="text" maxlength="70" autocomplete="off" placeholder="Ej. Familia González" required>
+              <label class="visually-hidden" for="new-family-name" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Nombre del hogar</label>
+              <input id="new-family-name" type="text" maxlength="70" autocomplete="off" placeholder="Ej. Hogar de Yerly" required>
               <button class="btn btn-primary" type="submit">Crear enlace</button>
             </form>
             <p class="form-error" id="create-error" role="alert" aria-live="polite"></p>
@@ -194,33 +194,33 @@
           </div>
           <div class="card-body">
             <div class="created" id="created-box" hidden>
-              <strong id="created-name">Familia</strong>
-              <p>Comparte este enlace solo con esa familia.</p>
+              <strong id="created-name">Hogar</strong>
+              <p>Comparte este enlace solo con ese hogar.</p>
               <div class="copy-row">
-                <input id="created-link" type="text" readonly aria-label="Enlace de la familia">
+                <input id="created-link" type="text" readonly aria-label="Enlace del hogar">
                 <button class="btn btn-quiet btn-small" id="copy-created" type="button">Copiar</button>
                 <button class="btn btn-primary btn-small" id="wa-created" type="button">WhatsApp</button>
               </div>
             </div>
-            <p class="empty-state" id="created-empty">Crea una familia para ver su enlace aquí.</p>
+            <p class="empty-state" id="created-empty">Crea un hogar para ver su enlace aquí.</p>
           </div>
         </section>
       </div>
 
       <div class="list-toolbar">
         <div>
-          <h2>Familias</h2>
-          <p id="list-summary">Todavía no hay familias.</p>
+          <h2>Hogares</h2>
+          <p id="list-summary">Todavía no hay hogares.</p>
         </div>
       </div>
       <p class="list-status" id="list-status" role="status" aria-live="polite"></p>
       <div class="family-grid" id="family-list"></div>
-      <p class="empty-state" id="family-empty">Aún no has creado familias. Empieza con “Nueva familia”.</p>
+      <p class="empty-state" id="family-empty">Aún no has creado hogares. Empieza con “Nuevo hogar”.</p>
     </main>
 
     <footer>
       <span>Familia Barrera · Administración</span>
-      <span>Panel privado. Los enlaces familiares no requieren contraseña.</span>
+      <span>Panel privado. Los enlaces de cada hogar no requieren contraseña.</span>
     </footer>
   </div>
 
