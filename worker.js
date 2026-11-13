@@ -1,13 +1,15 @@
 // ============================================================
 //  Encuentro familiar · Cloudflare Worker
 //  - Sirve los archivos estáticos (index.html, app.js, admin.html...)
-//  - Cada familia entra con un link único: /f/<token>  (sin login)
+//  - Un solo enlace general por encuentro: /f/<token>  (sin login)
+//  - Cada persona que abre el enlace guarda su propia respuesta
 //  - Panel de administración protegido: /admin
 //  Base de datos: KV (binding "FAMILIA")
 //  Contraseña de admin: variable/secreto "ADMIN_CLAVE"
 // ============================================================
 
-const PREFIJO_FAMILIA = 'familia:';
+const PREFIJO_ENLACE = 'familia:';
+const PREFIJO_RESPUESTA = 'respuesta:';
 const PREFIJO_SESION = 'sesion:';
 const DURACION_SESION = 12 * 60 * 60; // 12 horas
 const CLAVE_DEFECTO = 'admin123';
@@ -50,65 +52,177 @@ function normalizar(body) {
   return { datos, errores };
 }
 
-function respondio(familia) {
-  return Boolean(familia && typeof familia.respondent === 'string' &&
-    familia.respondent.trim() && Number(familia.people) >= 1);
+function respondio(respuesta) {
+  return Boolean(respuesta && typeof respuesta.respondent === 'string' &&
+    respuesta.respondent.trim() && Number(respuesta.people) >= 1);
 }
 
 function tokenValido(token) {
   return typeof token === 'string' && /^[A-Za-z0-9-]{8,64}$/.test(token);
 }
 
+function idValido(id) {
+  return typeof id === 'string' && /^[A-Za-z0-9-]{6,64}$/.test(id);
+}
+
 function kvLista(env) {
   return Boolean(env && env.FAMILIA);
 }
 
-async function listarFamilias(env) {
+async function listarClaves(env, prefijo) {
   const claves = [];
   let cursor;
   do {
-    const pagina = await env.FAMILIA.list({ prefix: PREFIJO_FAMILIA, cursor });
+    const pagina = await env.FAMILIA.list({ prefix: prefijo, cursor });
     claves.push(...pagina.keys);
     cursor = pagina.list_complete ? null : pagina.cursor;
   } while (cursor);
+  return claves;
+}
+
+async function listarEnlaces(env) {
+  const claves = await listarClaves(env, PREFIJO_ENLACE);
   const valores = await Promise.all(claves.map(k => env.FAMILIA.get(k.name, 'json')));
   return valores.filter(Boolean);
 }
 
-async function resumen(env) {
-  const familias = await listarFamilias(env);
-  const conRespuesta = familias.filter(respondio);
+// Compatibilidad con el modelo anterior: un enlace guardaba una sola respuesta.
+function esLegacy(enlace) {
+  return respondio(enlace);
+}
+
+function respuestaLegacy(enlace) {
   return {
-    total: familias.length,
-    respondidas: conRespuesta.length,
-    personas: conRespuesta.reduce((suma, f) => suma + Number(f.people), 0),
-    filas: conRespuesta.map(f => ({
-      respondent: f.respondent,
-      people: Number(f.people),
-      availableFrom: f.availableFrom || '',
-      availableTo: f.availableTo || '',
-      updatedAt: f.updatedAt
-    }))
+    id: 'principal',
+    respondent: enlace.respondent,
+    people: Number(enlace.people),
+    availableFrom: enlace.availableFrom || '',
+    availableTo: enlace.availableTo || '',
+    proposal: enlace.proposal || '',
+    createdAt: enlace.createdAt || enlace.updatedAt || '',
+    updatedAt: enlace.updatedAt || ''
   };
 }
 
-async function obtenerFamilia(env, token) {
-  if (!tokenValido(token)) return null;
-  return await env.FAMILIA.get(PREFIJO_FAMILIA + token, 'json');
+async function respuestasDe(env, enlace) {
+  const claves = await listarClaves(env, PREFIJO_RESPUESTA + enlace.token + ':');
+  const valores = await Promise.all(claves.map(k => env.FAMILIA.get(k.name, 'json')));
+  const respuestas = valores.filter(Boolean);
+  if (esLegacy(enlace)) respuestas.push(respuestaLegacy(enlace));
+  return respuestas.sort((a, b) => String(a.respondent).localeCompare(String(b.respondent), 'es'));
 }
 
-async function guardarFamilia(env, token, datos) {
+async function enlaceConRespuestas(env, enlace) {
+  const respuestas = await respuestasDe(env, enlace);
+  return {
+    token: enlace.token,
+    name: enlace.name,
+    createdAt: enlace.createdAt,
+    updatedAt: enlace.updatedAt,
+    respuestas,
+    hogares: respuestas.length,
+    people: respuestas.reduce((suma, r) => suma + Number(r.people || 0), 0)
+  };
+}
+
+async function resumen(env) {
+  const enlaces = await listarEnlaces(env);
+  const filas = [];
+  for (const enlace of enlaces) {
+    for (const respuesta of await respuestasDe(env, enlace)) {
+      if (!respondio(respuesta)) continue;
+      filas.push({
+        respondent: respuesta.respondent,
+        people: Number(respuesta.people),
+        availableFrom: respuesta.availableFrom || '',
+        availableTo: respuesta.availableTo || '',
+        updatedAt: respuesta.updatedAt
+      });
+    }
+  }
+  return {
+    total: enlaces.length,
+    respondidas: filas.length,
+    personas: filas.reduce((suma, f) => suma + Number(f.people), 0),
+    filas
+  };
+}
+
+async function obtenerEnlace(env, token) {
+  if (!tokenValido(token)) return null;
+  return await env.FAMILIA.get(PREFIJO_ENLACE + token, 'json');
+}
+
+async function obtenerRespuesta(env, token, id) {
+  if (!tokenValido(token) || !idValido(id)) return null;
+  if (id === 'principal') return null;
+  return await env.FAMILIA.get(PREFIJO_RESPUESTA + token + ':' + id, 'json');
+}
+
+async function crearRespuesta(env, token, datos) {
   const ahora = new Date().toISOString();
-  const previa = (await obtenerFamilia(env, token)) || {};
+  const id = crypto.randomUUID().replace(/-/g, '');
   const registro = {
-    token,
-    name: previa.name || '',
+    id,
     ...datos,
+    createdAt: ahora,
+    updatedAt: ahora
+  };
+  await env.FAMILIA.put(PREFIJO_RESPUESTA + token + ':' + id, JSON.stringify(registro));
+  return registro;
+}
+
+async function actualizarRespuesta(env, token, id, datos) {
+  const ahora = new Date().toISOString();
+  const previa = await obtenerRespuesta(env, token, id);
+  if (!previa) return null;
+  const registro = {
+    ...previa,
+    ...datos,
+    id,
     createdAt: previa.createdAt || ahora,
     updatedAt: ahora
   };
-  await env.FAMILIA.put(PREFIJO_FAMILIA + token, JSON.stringify(registro));
+  await env.FAMILIA.put(PREFIJO_RESPUESTA + token + ':' + id, JSON.stringify(registro));
   return registro;
+}
+
+async function actualizarLegacy(env, enlace, datos) {
+  const ahora = new Date().toISOString();
+  const registro = {
+    ...enlace,
+    ...datos,
+    updatedAt: ahora
+  };
+  await env.FAMILIA.put(PREFIJO_ENLACE + enlace.token, JSON.stringify(registro));
+  return {
+    id: 'principal',
+    ...datos,
+    createdAt: enlace.createdAt || ahora,
+    updatedAt: ahora
+  };
+}
+
+async function borrarRespuesta(env, enlace, id) {
+  if (id === 'principal') {
+    const resto = { ...enlace };
+    delete resto.respondent;
+    delete resto.people;
+    delete resto.availableFrom;
+    delete resto.availableTo;
+    delete resto.proposal;
+    resto.updatedAt = new Date().toISOString();
+    await env.FAMILIA.put(PREFIJO_ENLACE + enlace.token, JSON.stringify(resto));
+    return true;
+  }
+  await env.FAMILIA.delete(PREFIJO_RESPUESTA + enlace.token + ':' + id);
+  return true;
+}
+
+async function borrarEnlace(env, token) {
+  const claves = await listarClaves(env, PREFIJO_RESPUESTA + token + ':');
+  await Promise.all(claves.map(k => env.FAMILIA.delete(k.name)));
+  await env.FAMILIA.delete(PREFIJO_ENLACE + token);
 }
 
 async function adminAutenticado(request, env) {
@@ -124,18 +238,24 @@ function csvCampo(valor) {
 }
 
 async function exportarCsv(env) {
-  const familias = (await listarFamilias(env))
+  const enlaces = (await listarEnlaces(env))
     .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
-  const cabecera = ['Hogar', 'Nombre y apellido', 'Personas', 'Disponible desde', 'Disponible hasta', 'Propuesta', 'Actualizado'];
-  const filas = familias.map(f => [
-    f.name,
-    respondio(f) ? f.respondent : '',
-    respondio(f) ? f.people : '',
-    respondio(f) ? (f.availableFrom || '') : '',
-    respondio(f) ? (f.availableTo || '') : '',
-    respondio(f) ? (f.proposal || '') : '',
-    f.updatedAt || ''
-  ]);
+  const cabecera = ['Enlace', 'Nombre y apellido', 'Personas', 'Disponible desde', 'Disponible hasta', 'Propuesta', 'Actualizado'];
+  const filas = [];
+  for (const enlace of enlaces) {
+    for (const respuesta of await respuestasDe(env, enlace)) {
+      if (!respondio(respuesta)) continue;
+      filas.push([
+        enlace.name,
+        respuesta.respondent,
+        respuesta.people,
+        respuesta.availableFrom || '',
+        respuesta.availableTo || '',
+        respuesta.proposal || '',
+        respuesta.updatedAt || ''
+      ]);
+    }
+  }
   const lineas = [cabecera, ...filas].map(fila => fila.map(csvCampo).join(',')).join('\r\n');
   return new Response('\uFEFF' + lineas, {
     headers: {
@@ -144,6 +264,20 @@ async function exportarCsv(env) {
       'cache-control': 'no-store'
     }
   });
+}
+
+function respuestaPublica(respuesta) {
+  // El id no se publica: es la llave para editar y solo la guarda el dispositivo
+  // donde se creó la respuesta.
+  return {
+    respondent: respuesta.respondent,
+    people: Number(respuesta.people),
+    availableFrom: respuesta.availableFrom || '',
+    availableTo: respuesta.availableTo || '',
+    proposal: respuesta.proposal || '',
+    createdAt: respuesta.createdAt || '',
+    updatedAt: respuesta.updatedAt || ''
+  };
 }
 
 async function manejarApi(request, env, url) {
@@ -157,27 +291,76 @@ async function manejarApi(request, env, url) {
     }, 503);
   }
 
-  // ---------- Resultados públicos (sin nombres) ----------
+  // ---------- Resultados públicos agregados ----------
   if (path === '/api/resumen' && metodo === 'GET') {
     return json(await resumen(env));
   }
 
-  // ---------- Respuesta de una familia ----------
-  const mFamilia = path.match(/^\/api\/familia\/([A-Za-z0-9-]{8,64})\/?$/);
-  if (mFamilia) {
-    const token = mFamilia[1];
-    const familia = await obtenerFamilia(env, token);
-    if (!familia) return json({ error: 'Link no válido o eliminado' }, 404);
+  // ---------- Enlace público: grupo + respuestas ----------
+  const mEnlace = path.match(/^\/api\/familia\/([A-Za-z0-9-]{8,64})\/?$/);
+  if (mEnlace) {
+    const token = mEnlace[1];
+    const enlace = await obtenerEnlace(env, token);
+    if (!enlace) return json({ error: 'Link no válido o eliminado' }, 404);
 
-    if (metodo === 'GET') return json(familia);
+    if (metodo === 'GET') {
+      const respuestas = await respuestasDe(env, enlace);
+      return json({
+        token: enlace.token,
+        name: enlace.name,
+        createdAt: enlace.createdAt,
+        updatedAt: enlace.updatedAt,
+        respuestas: respuestas.map(respuestaPublica)
+      });
+    }
 
-    if (metodo === 'POST' || metodo === 'PUT') {
+    if (metodo === 'POST') {
       let body;
       try { body = await request.json(); } catch { return json({ error: 'JSON inválido' }, 400); }
       const { datos, errores } = normalizar(body);
       if (errores.length) return json({ error: 'Revisa los campos', campos: errores }, 422);
-      return json(await guardarFamilia(env, token, datos));
+      const respuesta = await crearRespuesta(env, token, datos);
+      return json(respuesta, 201);
     }
+
+    return json({ error: 'Método no permitido' }, 405);
+  }
+
+  // ---------- Una respuesta concreta (editar la propia) ----------
+  const mRespuesta = path.match(/^\/api\/familia\/([A-Za-z0-9-]{8,64})\/([A-Za-z0-9-]{6,64})\/?$/);
+  if (mRespuesta) {
+    const token = mRespuesta[1];
+    const id = mRespuesta[2];
+    const enlace = await obtenerEnlace(env, token);
+    if (!enlace) return json({ error: 'Link no válido o eliminado' }, 404);
+
+    if (id === 'principal') {
+      if (!esLegacy(enlace)) return json({ error: 'Respuesta no encontrada' }, 404);
+      if (metodo === 'GET') return json(respuestaLegacy(enlace));
+      if (metodo === 'PUT') {
+        let body;
+        try { body = await request.json(); } catch { return json({ error: 'JSON inválido' }, 400); }
+        const { datos, errores } = normalizar(body);
+        if (errores.length) return json({ error: 'Revisa los campos', campos: errores }, 422);
+        return json(await actualizarLegacy(env, enlace, datos));
+      }
+      return json({ error: 'Método no permitido' }, 405);
+    }
+
+    const respuesta = await obtenerRespuesta(env, token, id);
+    if (!respuesta) return json({ error: 'Respuesta no encontrada' }, 404);
+
+    if (metodo === 'GET') return json(respuesta);
+
+    if (metodo === 'PUT') {
+      let body;
+      try { body = await request.json(); } catch { return json({ error: 'JSON inválido' }, 400); }
+      const { datos, errores } = normalizar(body);
+      if (errores.length) return json({ error: 'Revisa los campos', campos: errores }, 422);
+      const actualizada = await actualizarRespuesta(env, token, id, datos);
+      return json(actualizada);
+    }
+
     return json({ error: 'Método no permitido' }, 405);
   }
 
@@ -207,8 +390,10 @@ async function manejarApi(request, env, url) {
     }
 
     if (path === '/api/admin/familias' && metodo === 'GET') {
-      const familias = (await listarFamilias(env))
+      const enlaces = (await listarEnlaces(env))
         .sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
+      const familias = [];
+      for (const enlace of enlaces) familias.push(await enlaceConRespuestas(env, enlace));
       return json({ familias });
     }
 
@@ -216,32 +401,27 @@ async function manejarApi(request, env, url) {
       let body;
       try { body = await request.json(); } catch { return json({ error: 'JSON inválido' }, 400); }
       const nombre = texto(body.name, 70);
-      if (!nombre) return json({ error: 'Escribe el nombre del hogar' }, 422);
+      if (!nombre) return json({ error: 'Escribe el nombre del enlace' }, 422);
       const token = crypto.randomUUID().replace(/-/g, '');
       const ahora = new Date().toISOString();
       const registro = {
         token,
         name: nombre,
-        respondent: '',
-        people: 0,
-        availableFrom: '',
-        availableTo: '',
-        proposal: '',
         createdAt: ahora,
         updatedAt: ahora
       };
-      await env.FAMILIA.put(PREFIJO_FAMILIA + token, JSON.stringify(registro));
-      return json(registro, 201);
+      await env.FAMILIA.put(PREFIJO_ENLACE + token, JSON.stringify(registro));
+      return json({ ...registro, respuestas: [], hogares: 0, people: 0 }, 201);
     }
 
-    const mAdmin = path.match(/^\/api\/admin\/familias\/([A-Za-z0-9-]{8,64})\/?$/);
-    if (mAdmin) {
-      const token = mAdmin[1];
-      const familia = await obtenerFamilia(env, token);
-      if (!familia) return json({ error: 'Hogar no encontrado' }, 404);
+    const mAdminEnlace = path.match(/^\/api\/admin\/familias\/([A-Za-z0-9-]{8,64})\/?$/);
+    if (mAdminEnlace) {
+      const token = mAdminEnlace[1];
+      const enlace = await obtenerEnlace(env, token);
+      if (!enlace) return json({ error: 'Enlace no encontrado' }, 404);
 
       if (metodo === 'DELETE') {
-        await env.FAMILIA.delete(PREFIJO_FAMILIA + token);
+        await borrarEnlace(env, token);
         return json({ ok: true });
       }
       if (metodo === 'PATCH' || metodo === 'PUT') {
@@ -249,12 +429,22 @@ async function manejarApi(request, env, url) {
         try { body = await request.json(); } catch { return json({ error: 'JSON inválido' }, 400); }
         const nombre = texto(body.name, 70);
         if (!nombre) return json({ error: 'Escribe el nombre' }, 422);
-        familia.name = nombre;
-        familia.updatedAt = new Date().toISOString();
-        await env.FAMILIA.put(PREFIJO_FAMILIA + token, JSON.stringify(familia));
-        return json(familia);
+        enlace.name = nombre;
+        enlace.updatedAt = new Date().toISOString();
+        await env.FAMILIA.put(PREFIJO_ENLACE + token, JSON.stringify(enlace));
+        return json(await enlaceConRespuestas(env, enlace));
       }
       return json({ error: 'Método no permitido' }, 405);
+    }
+
+    const mAdminRespuesta = path.match(/^\/api\/admin\/respuestas\/([A-Za-z0-9-]{8,64})\/([A-Za-z0-9-]{6,64})\/?$/);
+    if (mAdminRespuesta && metodo === 'DELETE') {
+      const token = mAdminRespuesta[1];
+      const id = mAdminRespuesta[2];
+      const enlace = await obtenerEnlace(env, token);
+      if (!enlace) return json({ error: 'Enlace no encontrado' }, 404);
+      await borrarRespuesta(env, enlace, id);
+      return json({ ok: true });
     }
 
     if (path === '/api/admin/export' && metodo === 'GET') {
@@ -292,7 +482,7 @@ export default {
         return servirAsset(env, url, '/admin.html');
       }
 
-      // Link único por familia: se sirve la app y app.js lee el token.
+      // Enlace general: se sirve la app y app.js lee el token.
       if (/^\/f\/[A-Za-z0-9-]{8,64}\/?$/.test(path)) {
         return servirAsset(env, url, '/index.html');
       }

@@ -24,9 +24,9 @@
   const listStatus = document.getElementById('list-status');
 
   let adminToken = sessionStorage.getItem(STORAGE_TOKEN) || '';
-  let familiasState = leerFamiliasCache();
+  let enlacesState = leerEnlacesCache();
 
-  function leerFamiliasCache() {
+  function leerEnlacesCache() {
     try {
       const datos = JSON.parse(sessionStorage.getItem(STORAGE_FAMILIAS) || '[]');
       return Array.isArray(datos) ? datos.filter(f => f && typeof f.token === 'string') : [];
@@ -35,8 +35,8 @@
     }
   }
 
-  function guardarFamiliasCache(familias) {
-    try { sessionStorage.setItem(STORAGE_FAMILIAS, JSON.stringify(familias)); } catch { /* sin caché */ }
+  function guardarEnlacesCache(enlaces) {
+    try { sessionStorage.setItem(STORAGE_FAMILIAS, JSON.stringify(enlaces)); } catch { /* sin caché */ }
   }
 
   // ---------------------------------------------------------
@@ -117,7 +117,7 @@
       sessionStorage.setItem(STORAGE_DEFAULT, data.porDefecto ? '1' : '0');
       adminKey.value = '';
       mostrarPanel();
-      await cargarFamilias();
+      await cargarEnlaces();
     } catch (error) {
       loginError.textContent = error.status === 401 ? 'Contraseña incorrecta.' : mensajeDeError(error);
     } finally {
@@ -136,10 +136,6 @@
   // ---------------------------------------------------------
   //  Datos y render
   // ---------------------------------------------------------
-  function respondio(familia) {
-    return Boolean(familia && String(familia.respondent || '').trim()) && Number(familia.people) >= 1;
-  }
-
   function fecha(iso) {
     if (!iso) return '—';
     const d = new Date(iso);
@@ -162,8 +158,8 @@
     return a || b;
   }
 
-  function enlaceDe(familia) {
-    return `${location.origin}/f/${familia.token}`;
+  function enlaceDe(enlace) {
+    return `${location.origin}/f/${enlace.token}`;
   }
 
   function elemento(tag, className, text) {
@@ -180,12 +176,20 @@
     return b;
   }
 
-  function mensajeWhatsApp(familia) {
-    return `Hola 👋 Te comparto tu enlace personal para el Encuentro Barrera (cumpleaños de los abuelos).\n\n${enlaceDe(familia)}\n\nEntra, escribe tu nombre y apellido, cuántas personas posiblemente pueden asistir y en qué fechas están disponibles. No necesitas contraseña ni crear cuenta.`;
+  function respuestasDe(enlace) {
+    return Array.isArray(enlace && enlace.respuestas) ? enlace.respuestas : [];
   }
 
-  function abrirWhatsApp(familia) {
-    window.open(`https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp(familia))}`, '_blank', 'noopener');
+  function totalPersonas(respuestas) {
+    return respuestas.reduce((suma, r) => suma + Number(r.people || 0), 0);
+  }
+
+  function mensajeWhatsApp(enlace) {
+    return `Hola 👋 Te comparto el enlace del Encuentro Barrera (cumpleaños de los abuelos).\n\n${enlaceDe(enlace)}\n\nEntra, escribe tu nombre y apellido, cuántas personas posiblemente pueden asistir y en qué fechas están disponibles. Cada persona responde por su hogar. No necesitas contraseña ni crear cuenta.`;
+  }
+
+  function abrirWhatsApp(enlace) {
+    window.open(`https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp(enlace))}`, '_blank', 'noopener');
   }
 
   async function copiar(texto, botonCopiar) {
@@ -210,97 +214,103 @@
     }
   }
 
-  function tarjetaFamilia(familia) {
+  function filaRespuesta(enlace, respuesta) {
+    const item = elemento('li', 'respuesta');
+
+    const head = elemento('div', 'respuesta-head');
+    head.append(elemento('strong', '', respuesta.respondent || 'Sin nombre'));
+    head.append(boton('Borrar', 'btn btn-danger btn-small', () => eliminarRespuesta(enlace, respuesta)));
+    item.append(head);
+
+    const datos = elemento('div', 'respuesta-datos');
+    const personas = Number(respuesta.people) || 0;
+    datos.append(elemento('span', '', `${personas} ${personas === 1 ? 'persona' : 'personas'}`));
+    datos.append(elemento('span', '', `Disponible: ${rangoFechas(respuesta.availableFrom, respuesta.availableTo)}`));
+    datos.append(elemento('span', '', `Actualizado: ${fecha(respuesta.updatedAt)}`));
+    item.append(datos);
+
+    const propuesta = String(respuesta.proposal || '').trim();
+    if (propuesta) item.append(elemento('p', 'respuesta-propuesta', `Propuesta: ${propuesta}`));
+
+    return item;
+  }
+
+  function tarjetaEnlace(enlace) {
     const card = elemento('article', 'family-card');
-    const respondida = respondio(familia);
+    const respuestas = respuestasDe(enlace);
 
     const head = elemento('div', 'family-card-head');
-    head.append(elemento('h3', '', familia.name));
-    head.append(elemento('span', respondida ? 'badge' : 'badge pending', respondida ? 'Respondió' : 'Pendiente'));
+    head.append(elemento('h3', '', enlace.name));
+    head.append(elemento('span', respuestas.length ? 'badge' : 'badge pending',
+      `${respuestas.length} ${respuestas.length === 1 ? 'hogar' : 'hogares'}`));
     card.append(head);
-
-    const meta = elemento('dl', 'family-meta');
-    const datos = [
-      ['Quién responde', respondida ? familia.respondent : 'Sin responder'],
-      ['Personas', respondida ? String(familia.people) : '-'],
-      ['Disponible', respondida ? rangoFechas(familia.availableFrom, familia.availableTo) : '-'],
-      ['Actualizado', fecha(familia.updatedAt)]
-    ];
-    for (const [clave, valor] of datos) {
-      const bloque = elemento('div');
-      bloque.append(elemento('dt', '', clave));
-      bloque.append(elemento('dd', '', valor));
-      meta.append(bloque);
-    }
-
-    const propuesta = respondida ? (familia.proposal || '').trim() : '';
-    const bloquePropuesta = elemento('div', 'wide');
-    bloquePropuesta.append(elemento('dt', '', 'Propuesta para el evento'));
-    bloquePropuesta.append(elemento('dd', '', respondida ? (propuesta || 'Sin propuesta') : '-'));
-    meta.append(bloquePropuesta);
-    card.append(meta);
 
     const linkRow = elemento('div', 'family-link');
     const input = document.createElement('input');
     input.type = 'text';
     input.readOnly = true;
-    input.value = enlaceDe(familia);
-    input.setAttribute('aria-label', `Enlace de ${familia.name}`);
-    const copiarBtn = boton('Copiar', 'btn btn-quiet btn-small', () => copiar(enlaceDe(familia), copiarBtn));
-    const waBtn = boton('WhatsApp', 'btn btn-primary btn-small', () => abrirWhatsApp(familia));
+    input.value = enlaceDe(enlace);
+    input.setAttribute('aria-label', `Enlace de ${enlace.name}`);
+    const copiarBtn = boton('Copiar', 'btn btn-quiet btn-small', () => copiar(enlaceDe(enlace), copiarBtn));
+    const waBtn = boton('WhatsApp', 'btn btn-primary btn-small', () => abrirWhatsApp(enlace));
     linkRow.append(input, copiarBtn, waBtn);
     card.append(linkRow);
 
+    if (respuestas.length) {
+      const lista = elemento('ul', 'respuestas');
+      for (const respuesta of respuestas) lista.append(filaRespuesta(enlace, respuesta));
+      card.append(lista);
+    } else {
+      card.append(elemento('p', 'respuesta-vacia', 'Todavía nadie ha respondido con este enlace.'));
+    }
+
     const actions = elemento('div', 'family-actions');
-    actions.append(boton('Renombrar', 'btn btn-quiet btn-small', () => renombrar(familia)));
-    actions.append(boton('Eliminar', 'btn btn-danger btn-small', () => eliminar(familia)));
+    actions.append(boton('Renombrar enlace', 'btn btn-quiet btn-small', () => renombrar(enlace)));
+    actions.append(boton('Eliminar enlace', 'btn btn-danger btn-small', () => eliminarEnlace(enlace)));
     card.append(actions);
 
     return card;
   }
 
-  function renderFamilias(familias) {
-    familiasState = familias;
-    guardarFamiliasCache(familias);
+  function renderEnlaces(enlaces) {
+    enlacesState = enlaces;
+    guardarEnlacesCache(enlaces);
     familyList.replaceChildren();
-    familyEmpty.hidden = familias.length > 0;
-    const respondidas = familias.filter(respondio);
-    const personas = respondidas.reduce((suma, f) => suma + Number(f.people), 0);
-    document.getElementById('stat-total').textContent = String(familias.length);
-    document.getElementById('stat-answered').textContent = String(respondidas.length);
-    document.getElementById('stat-pending').textContent = String(familias.length - respondidas.length);
+    familyEmpty.hidden = enlaces.length > 0;
+
+    const hogares = enlaces.reduce((suma, e) => suma + respuestasDe(e).length, 0);
+    const personas = enlaces.reduce((suma, e) => suma + totalPersonas(respuestasDe(e)), 0);
+    document.getElementById('stat-links').textContent = String(enlaces.length);
+    document.getElementById('stat-homes').textContent = String(hogares);
     document.getElementById('stat-people').textContent = String(personas);
-    listSummary.textContent = familias.length
-      ? `${familias.length} ${familias.length === 1 ? 'hogar creado' : 'hogares creados'} · ${respondidas.length} ${respondidas.length === 1 ? 'respondió' : 'respondieron'}.`
-      : 'Todavía no hay hogares.';
-    if (!familias.length) return;
+
+    listSummary.textContent = enlaces.length
+      ? `${enlaces.length} ${enlaces.length === 1 ? 'enlace' : 'enlaces'} · ${hogares} ${hogares === 1 ? 'hogar' : 'hogares'} · ${personas} ${personas === 1 ? 'persona' : 'personas'}.`
+      : 'Todavía no hay enlaces.';
+    if (!enlaces.length) return;
 
     const fragment = document.createDocumentFragment();
-    for (const familia of familias) fragment.append(tarjetaFamilia(familia));
+    for (const enlace of enlaces) fragment.append(tarjetaEnlace(enlace));
     familyList.append(fragment);
   }
 
-  function fusionarFamilias(servidor, locales) {
-    const mapa = new Map(servidor.map(familia => [familia.token, familia]));
+  function fusionarEnlaces(servidor, locales) {
+    const mapa = new Map(servidor.map(enlace => [enlace.token, enlace]));
     const limite = Date.now() - 5 * 60 * 1000;
-    for (const familia of locales) {
-      const enServidor = mapa.get(familia.token);
-      if (enServidor) {
-        if (String(familia.updatedAt || '') > String(enServidor.updatedAt || '')) mapa.set(familia.token, familia);
-        continue;
-      }
-      const creada = Date.parse(familia.createdAt || familia.updatedAt || '');
-      if (Number.isFinite(creada) && creada > limite) mapa.set(familia.token, familia);
+    for (const enlace of locales) {
+      if (mapa.has(enlace.token)) continue;
+      const creado = Date.parse(enlace.createdAt || enlace.updatedAt || '');
+      if (Number.isFinite(creado) && creado > limite) mapa.set(enlace.token, enlace);
     }
     return [...mapa.values()].sort((a, b) => String(a.name).localeCompare(String(b.name), 'es'));
   }
 
-  async function cargarFamilias() {
-    listStatus.textContent = 'Cargando hogares…';
+  async function cargarEnlaces() {
+    listStatus.textContent = 'Cargando enlaces…';
     try {
       const data = await api('/api/admin/familias');
       const servidor = Array.isArray(data.familias) ? data.familias : [];
-      renderFamilias(fusionarFamilias(servidor, familiasState));
+      renderEnlaces(fusionarEnlaces(servidor, enlacesState));
       listStatus.textContent = '';
     } catch (error) {
       if (adminToken) listStatus.textContent = mensajeDeError(error);
@@ -309,16 +319,16 @@
   }
 
   function limpiarDashboard() {
-    familiasState = [];
-    guardarFamiliasCache([]);
+    enlacesState = [];
+    guardarEnlacesCache([]);
     familyList.replaceChildren();
     familyEmpty.hidden = false;
     createdBox.hidden = true;
     createdEmpty.hidden = false;
-    for (const id of ['stat-total', 'stat-answered', 'stat-pending', 'stat-people']) {
+    for (const id of ['stat-links', 'stat-homes', 'stat-people']) {
       document.getElementById(id).textContent = '0';
     }
-    listSummary.textContent = 'Todavía no hay hogares.';
+    listSummary.textContent = 'Todavía no hay enlaces.';
     listStatus.textContent = '';
     createError.textContent = '';
   }
@@ -331,7 +341,7 @@
     createError.textContent = '';
     const nombre = newFamilyName.value.trim();
     if (!nombre) {
-      createError.textContent = 'Escribe el nombre del hogar.';
+      createError.textContent = 'Escribe un nombre para el enlace.';
       newFamilyName.focus();
       return;
     }
@@ -339,18 +349,18 @@
     submit.disabled = true;
     submit.textContent = 'Creando…';
     try {
-      const familia = await api('/api/admin/familias', {
+      const enlace = await api('/api/admin/familias', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: nombre })
       });
-      createdName.textContent = familia.name;
-      createdLink.value = enlaceDe(familia);
+      createdName.textContent = enlace.name;
+      createdLink.value = enlaceDe(enlace);
       createdBox.hidden = false;
       createdEmpty.hidden = true;
       newFamilyName.value = '';
-      renderFamilias([...familiasState.filter(item => item.token !== familia.token), familia]);
-      listStatus.textContent = `Enlace creado para ${familia.name}.`;
+      renderEnlaces([...enlacesState.filter(item => item.token !== enlace.token), enlace]);
+      listStatus.textContent = `Enlace creado para ${enlace.name}.`;
     } catch (error) {
       createError.textContent = mensajeDeError(error);
     } finally {
@@ -364,41 +374,62 @@
   });
 
   document.getElementById('wa-created').addEventListener('click', () => {
-    const nombre = createdName.textContent || 'Hogar';
-    const mensaje = `Hola 👋 Te comparto el enlace personal de ${nombre} para el Encuentro Barrera.\n\n${createdLink.value}\n\nEntra, escribe tu nombre y apellido, cuántas personas posiblemente pueden asistir y en qué fechas están disponibles. No necesitas contraseña ni crear cuenta.`;
+    const nombre = createdName.textContent || 'el encuentro';
+    const mensaje = `Hola 👋 Te comparto el enlace de ${nombre} para el Encuentro Barrera (cumpleaños de los abuelos).\n\n${createdLink.value}\n\nEntra, escribe tu nombre y apellido, cuántas personas posiblemente pueden asistir y en qué fechas están disponibles. Cada persona responde por su hogar. No necesitas contraseña ni crear cuenta.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(mensaje)}`, '_blank', 'noopener');
   });
 
-  async function renombrar(familia) {
-    const nuevo = window.prompt('Nuevo nombre del hogar:', familia.name);
+  async function renombrar(enlace) {
+    const nuevo = window.prompt('Nuevo nombre del enlace:', enlace.name);
     if (nuevo === null) return;
     const nombre = nuevo.trim();
-    if (!nombre || nombre === familia.name) return;
+    if (!nombre || nombre === enlace.name) return;
     try {
-      const actualizada = await api(`/api/admin/familias/${familia.token}`, {
+      const actualizado = await api(`/api/admin/familias/${enlace.token}`, {
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ name: nombre })
       });
-      renderFamilias(familiasState.map(item => item.token === actualizada.token ? actualizada : item));
-      listStatus.textContent = 'Nombre actualizado.';
+      renderEnlaces(enlacesState.map(item => item.token === actualizado.token ? actualizado : item));
+      listStatus.textContent = 'Nombre del enlace actualizado.';
     } catch (error) {
       listStatus.textContent = mensajeDeError(error);
     }
   }
 
-  async function eliminar(familia) {
-    if (!window.confirm(`¿Eliminar a ${familia.name}? Su enlace dejará de funcionar y su respuesta se borrará.`)) return;
+  async function eliminarEnlace(enlace) {
+    const hogares = respuestasDe(enlace).length;
+    const aviso = hogares
+      ? `¿Eliminar el enlace "${enlace.name}"? Su enlace dejará de funcionar y se borrarán sus ${hogares} ${hogares === 1 ? 'respuesta' : 'respuestas'}.`
+      : `¿Eliminar el enlace "${enlace.name}"? Su enlace dejará de funcionar.`;
+    if (!window.confirm(aviso)) return;
     try {
-      await api(`/api/admin/familias/${familia.token}`, { method: 'DELETE' });
-      renderFamilias(familiasState.filter(item => item.token !== familia.token));
-      listStatus.textContent = `${familia.name} fue eliminado.`;
+      await api(`/api/admin/familias/${enlace.token}`, { method: 'DELETE' });
+      renderEnlaces(enlacesState.filter(item => item.token !== enlace.token));
+      listStatus.textContent = `El enlace "${enlace.name}" fue eliminado.`;
     } catch (error) {
       listStatus.textContent = mensajeDeError(error);
     }
   }
 
-  document.getElementById('refresh-button').addEventListener('click', cargarFamilias);
+  async function eliminarRespuesta(enlace, respuesta) {
+    if (!window.confirm(`¿Borrar la respuesta de ${respuesta.respondent}?`)) return;
+    try {
+      await api(`/api/admin/respuestas/${enlace.token}/${respuesta.id}`, { method: 'DELETE' });
+      const actualizado = {
+        ...enlace,
+        respuestas: respuestasDe(enlace).filter(r => r.id !== respuesta.id)
+      };
+      actualizado.hogares = actualizado.respuestas.length;
+      actualizado.people = totalPersonas(actualizado.respuestas);
+      renderEnlaces(enlacesState.map(item => item.token === enlace.token ? actualizado : item));
+      listStatus.textContent = `Se borró la respuesta de ${respuesta.respondent}.`;
+    } catch (error) {
+      listStatus.textContent = mensajeDeError(error);
+    }
+  }
+
+  document.getElementById('refresh-button').addEventListener('click', cargarEnlaces);
 
   document.getElementById('export-button').addEventListener('click', async () => {
     listStatus.textContent = 'Preparando CSV…';
@@ -433,7 +464,7 @@
   // ---------------------------------------------------------
   if (adminToken) {
     mostrarPanel();
-    cargarFamilias();
+    cargarEnlaces();
   } else {
     mostrarLogin();
   }

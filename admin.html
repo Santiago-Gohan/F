@@ -65,7 +65,7 @@
     .admin-actions { display: flex; gap: 8px; flex-wrap: wrap; }
     .warning { margin: 0 0 20px; padding: 13px 16px; display: flex; gap: 11px; border: 1px solid #ded2b7; background: #f8f2e4; color: #615331; font-size: 13px; }
     .warning-mark { flex: 0 0 auto; width: 19px; height: 19px; border: 1px solid currentColor; border-radius: 50%; display: grid; place-items: center; font: 12px var(--serif); }
-    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 22px; }
+    .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 22px; }
     .stat { padding: 16px 18px; background: var(--surface); border: 1px solid var(--line); }
     .stat-label { display: block; color: var(--muted); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
     .stat-value { display: block; margin-top: 2px; font: 32px/1.1 var(--serif); }
@@ -99,6 +99,14 @@
     .family-link { display: flex; gap: 7px; flex-wrap: wrap; }
     .family-link input { flex: 1 1 170px; min-width: 0; }
     .family-actions { display: flex; gap: 7px; flex-wrap: wrap; padding-top: 12px; border-top: 1px solid var(--line); }
+    .respuestas { list-style: none; display: grid; gap: 8px; margin: 0; padding: 0; }
+    .respuesta { display: grid; gap: 6px; padding: 11px 12px; background: var(--surface-soft); border: 1px solid var(--line); font-size: 12px; }
+    .respuesta-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .respuesta-head strong { font-size: 14px; overflow-wrap: anywhere; }
+    .respuesta-datos { display: flex; flex-wrap: wrap; gap: 3px 14px; color: var(--muted); }
+    .respuesta-datos span { white-space: nowrap; }
+    .respuesta-propuesta { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+    .respuesta-vacia { margin: 0; padding: 11px 12px; border: 1px dashed #c8cec2; color: var(--muted); font-size: 12px; text-align: center; }
     .empty-state { padding: 22px; border: 1px dashed #c8cec2; color: var(--muted); font-size: 13px; text-align: center; }
     .list-status { min-height: 18px; margin: 0 0 10px; color: var(--muted); font-size: 12px; }
     footer { display: flex; justify-content: space-between; gap: 20px; padding: 24px 0 34px; color: var(--muted); font-size: 10px; }
@@ -133,7 +141,7 @@
       <div class="login-card">
         <p class="kicker">Administración</p>
         <h1>Entra a tu panel.</h1>
-        <p>Solo tú puedes crear hogares, copiar sus enlaces y ver todas las respuestas.</p>
+        <p>Solo tú puedes crear enlaces y ver todas las respuestas.</p>
         <form id="login-form" novalidate>
           <div class="field">
             <label for="admin-key">Contraseña de administración</label>
@@ -150,7 +158,7 @@
         <div>
           <p class="kicker">Administración</p>
           <h1>Todo el encuentro, en un solo lugar.</h1>
-          <p>Crea un hogar y comparte su enlace personal. Quien responde no necesita crear cuenta.</p>
+          <p>Comparte un solo enlace con toda la familia. Cada persona responde por su hogar.</p>
         </div>
         <div class="admin-actions">
           <button class="btn btn-quiet" id="refresh-button" type="button">Actualizar</button>
@@ -165,22 +173,21 @@
       </div>
 
       <div class="stats">
-        <div class="stat"><span class="stat-label">Hogares</span><span class="stat-value" id="stat-total">0</span></div>
-        <div class="stat"><span class="stat-label">Respondieron</span><span class="stat-value" id="stat-answered">0</span></div>
-        <div class="stat"><span class="stat-label">Pendientes</span><span class="stat-value" id="stat-pending">0</span></div>
+        <div class="stat"><span class="stat-label">Enlaces</span><span class="stat-value" id="stat-links">0</span></div>
+        <div class="stat"><span class="stat-label">Hogares</span><span class="stat-value" id="stat-homes">0</span></div>
         <div class="stat"><span class="stat-label">Personas</span><span class="stat-value" id="stat-people">0</span></div>
       </div>
 
       <div class="grid-2">
         <section class="card">
           <div class="card-head">
-            <h2>Nuevo hogar</h2>
-            <p>Escribe el nombre del hogar y te damos su enlace único.</p>
+            <h2>Nuevo enlace</h2>
+            <p>Escribe un nombre para identificar el encuentro y te damos su enlace.</p>
           </div>
           <div class="card-body">
             <form class="inline-form" id="create-form" novalidate>
-              <label class="visually-hidden" for="new-family-name" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Nombre del hogar</label>
-              <input id="new-family-name" type="text" maxlength="70" autocomplete="off" placeholder="Ej. Hogar de Yerly" required>
+              <label class="visually-hidden" for="new-family-name" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">Nombre del enlace</label>
+              <input id="new-family-name" type="text" maxlength="70" autocomplete="off" placeholder="Ej. Encuentro Barrera 2027" required>
               <button class="btn btn-primary" type="submit">Crear enlace</button>
             </form>
             <p class="form-error" id="create-error" role="alert" aria-live="polite"></p>
@@ -194,33 +201,33 @@
           </div>
           <div class="card-body">
             <div class="created" id="created-box" hidden>
-              <strong id="created-name">Hogar</strong>
-              <p>Comparte este enlace solo con ese hogar.</p>
+              <strong id="created-name">Encuentro</strong>
+              <p>Comparte este enlace con toda la familia.</p>
               <div class="copy-row">
-                <input id="created-link" type="text" readonly aria-label="Enlace del hogar">
+                <input id="created-link" type="text" readonly aria-label="Enlace del encuentro">
                 <button class="btn btn-quiet btn-small" id="copy-created" type="button">Copiar</button>
                 <button class="btn btn-primary btn-small" id="wa-created" type="button">WhatsApp</button>
               </div>
             </div>
-            <p class="empty-state" id="created-empty">Crea un hogar para ver su enlace aquí.</p>
+            <p class="empty-state" id="created-empty">Crea un enlace para verlo aquí.</p>
           </div>
         </section>
       </div>
 
       <div class="list-toolbar">
         <div>
-          <h2>Hogares</h2>
-          <p id="list-summary">Todavía no hay hogares.</p>
+          <h2>Enlaces</h2>
+          <p id="list-summary">Todavía no hay enlaces.</p>
         </div>
       </div>
       <p class="list-status" id="list-status" role="status" aria-live="polite"></p>
       <div class="family-grid" id="family-list"></div>
-      <p class="empty-state" id="family-empty">Aún no has creado hogares. Empieza con “Nuevo hogar”.</p>
+      <p class="empty-state" id="family-empty">Aún no has creado enlaces. Empieza con “Nuevo enlace”.</p>
     </main>
 
     <footer>
       <span>Familia Barrera · Administración</span>
-      <span>Panel privado. Los enlaces de cada hogar no requieren contraseña.</span>
+      <span>Panel privado. El enlace del encuentro no requiere contraseña.</span>
     </footer>
   </div>
 

@@ -90,6 +90,8 @@
     .thanks h2 { margin: 0 0 10px; font: 500 27px/1.15 var(--serif); letter-spacing: -.02em; }
     .thanks p { margin: 0 0 8px; color: var(--muted); font-size: 14px; }
     .thanks .btn { margin-top: 14px; }
+    .thanks-actions { display: flex; gap: 9px; justify-content: center; flex-wrap: wrap; }
+    .thanks-actions .btn { flex: 0 1 auto; }
     .summary-list { list-style: none; display: grid; gap: 8px; margin: 0; padding: 0; }
     .summary-item { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; background: var(--surface-soft); border: 1px solid #e7e5dc; font-size: 13px; }
     .summary-item small { display: block; margin-top: 2px; color: var(--muted); font-size: 11px; }
@@ -234,9 +236,9 @@
 
       <section class="family-banner" id="family-banner" aria-live="polite" hidden>
         <div>
-          <span id="family-banner-label">Tu hogar</span>
-          <strong id="family-banner-name">Hogar</strong>
-          <span id="family-banner-help">Actualiza tu respuesta cuando quieras. Este enlace es personal.</span>
+          <span id="family-banner-label">Encuentro</span>
+          <strong id="family-banner-name">Encuentro Barrera</strong>
+          <span id="family-banner-help">Cada persona responde por su hogar. Puedes editar tu respuesta desde este dispositivo.</span>
         </div>
         <span class="family-badge pending" id="family-badge">Pendiente</span>
       </section>
@@ -249,11 +251,11 @@
       <section class="home-entry" id="home-entry" hidden>
         <p class="section-index">Acceso con tu enlace</p>
         <h2>Entra con el enlace que te compartieron</h2>
-        <p>No necesitas crear cuenta ni contraseña. Pega aquí tu enlace personal (o el código) y listo.</p>
+        <p>No necesitas crear cuenta ni contraseña. Pega aquí el enlace del encuentro (o el código) y responde por tu hogar.</p>
         <form class="link-row" id="link-form" novalidate>
-          <label class="visually-hidden" for="link-input">Enlace o código de tu hogar</label>
+          <label class="visually-hidden" for="link-input">Enlace o código del encuentro</label>
           <input id="link-input" type="text" inputmode="url" autocomplete="off" placeholder="https://family.nnking919.workers.dev/f/abc123…">
-          <button class="btn btn-primary" type="submit">Entrar a mi panel</button>
+          <button class="btn btn-primary" type="submit">Entrar al encuentro</button>
         </form>
         <p class="form-error" id="link-error" role="alert" aria-live="polite"></p>
         <p class="home-hint">¿No tienes enlace? Pídeselo a quien organiza la celebración. La administración está en <a href="/admin">/admin</a>.</p>
@@ -263,7 +265,7 @@
         <section class="panel form-panel" aria-labelledby="form-title">
           <div class="panel-head">
             <p class="section-index">01 · Responder</p>
-            <h2 id="form-title">Confirma tu asistencia</h2>
+            <h2 id="form-title">Registra tu respuesta</h2>
             <p id="form-help">Escribe tu nombre y apellido, cuántas personas posiblemente pueden asistir y en qué fechas.</p>
           </div>
           <form id="family-form" class="form-body" novalidate>
@@ -302,7 +304,10 @@
             <h2>¡Gracias por tu respuesta!</h2>
             <p>Gracias, <strong id="thanks-name"></strong>. Esperamos que puedas asistir.</p>
             <p>Pronto Santiago Barrera compartirá los resultados.</p>
-            <button class="btn btn-quiet" id="edit-response" type="button">Editar mi respuesta</button>
+            <div class="thanks-actions">
+              <button class="btn btn-primary" id="edit-response" type="button">Editar mi respuesta</button>
+              <button class="btn btn-quiet" id="add-response" type="button">Registrar otra persona</button>
+            </div>
           </div>
         </section>
 
